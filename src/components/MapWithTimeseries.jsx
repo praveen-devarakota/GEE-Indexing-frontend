@@ -58,6 +58,7 @@ export default function MapWithTimeseries() {
   const [geometry, setGeometry] = useState(null);
   const [timeseries, setTimeseries] = useState([]);
   const [stats, setStats] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   const [form, setForm] = useState({
     start_date: "2020-01-01",
@@ -104,6 +105,7 @@ export default function MapWithTimeseries() {
 
   const fetchTimeseries = async (latlng) => {
     setSelectedPoint(latlng);
+    setShowModal(true);
 
     const res = await fetch(`${BACKEND_URL}/api/timeseries`, {
       method: "POST",
@@ -175,194 +177,252 @@ export default function MapWithTimeseries() {
     },
   };
 
+  const closeModal = () => {
+    setShowModal(false);
+  };
+
   return (
     <div style={{ 
-      display: "grid", 
-      gridTemplateColumns: "1fr 450px", 
-      gap: "1.5rem", 
-      height: "100vh", 
-      padding: "1.5rem",
-      background: "linear-gradient(to bottom, #f8fafc, #f1f5f9)",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      width: "100%",
+      height: "100vh",
+      fontFamily: "'Times New Roman', Times, serif",
+      background: "#f8fafc",
+      overflow: "hidden",
+      position: "relative",
+      display: "flex",
+      flexDirection: "column"
     }}>
-      {/* Left Panel - Map */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        <div style={{ 
-          background: "white", 
-          padding: "1.5rem", 
-          borderRadius: "12px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+      {/* Fixed Top Control Panel */}
+      <div style={{ 
+        background: "white", 
+        padding: "1.5rem", 
+        borderBottom: "2px solid #e2e8f0",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+        flexShrink: 0
+      }}>
+        <h2 style={{ 
+          margin: "0 0 1rem 0", 
+          fontSize: "1.5rem", 
+          fontWeight: "normal",
+          color: "#1e293b",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          fontFamily: "'Times New Roman', Times, serif"
         }}>
-          <h2 style={{ 
-            margin: "0 0 1rem 0", 
-            fontSize: "1.5rem", 
-            fontWeight: "600",
-            color: "#1e293b",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem"
-          }}>
-            🌍 Satellite Indices Viewer
-          </h2>
+          🌍 Satellite Indices Viewer
+        </h2>
 
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "1fr 1fr 100px 140px auto", 
-            gap: "0.75rem",
-            alignItems: "end"
-          }}>
-            <div>
-              <label style={{ 
-                display: "block", 
-                fontSize: "0.75rem", 
-                fontWeight: "500", 
-                color: "#64748b",
-                marginBottom: "0.25rem"
-              }}>Start Date</label>
-              <input 
-                type="date" 
-                value={form.start_date} 
-                onChange={(e) => setForm({ ...form, start_date: e.target.value })} 
-                style={{
-                  width: "100%",
-                  padding: "0.625rem 0.75rem",
-                  border: "1.5px solid #e2e8f0",
-                  borderRadius: "8px",
-                  fontSize: "0.875rem",
-                  outline: "none",
-                  transition: "all 0.2s",
-                  background: "white"
-                }}
-                onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-                onBlur={(e) => e.target.style.borderColor = "#e2e8f0"}
-              />
-            </div>
-
-            <div>
-              <label style={{ 
-                display: "block", 
-                fontSize: "0.75rem", 
-                fontWeight: "500", 
-                color: "#64748b",
-                marginBottom: "0.25rem"
-              }}>End Date</label>
-              <input 
-                type="date" 
-                value={form.end_date} 
-                onChange={(e) => setForm({ ...form, end_date: e.target.value })} 
-                style={{
-                  width: "100%",
-                  padding: "0.625rem 0.75rem",
-                  border: "1.5px solid #e2e8f0",
-                  borderRadius: "8px",
-                  fontSize: "0.875rem",
-                  outline: "none",
-                  transition: "all 0.2s",
-                  background: "white"
-                }}
-                onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-                onBlur={(e) => e.target.style.borderColor = "#e2e8f0"}
-              />
-            </div>
-
-            <div>
-              <label style={{ 
-                display: "block", 
-                fontSize: "0.75rem", 
-                fontWeight: "500", 
-                color: "#64748b",
-                marginBottom: "0.25rem"
-              }}>Cloud %</label>
-              <input 
-                type="number" 
-                min="0" 
-                max="100" 
-                value={form.max_cloud} 
-                onChange={(e) => setForm({ ...form, max_cloud: e.target.value })} 
-                style={{
-                  width: "100%",
-                  padding: "0.625rem 0.75rem",
-                  border: "1.5px solid #e2e8f0",
-                  borderRadius: "8px",
-                  fontSize: "0.875rem",
-                  outline: "none",
-                  transition: "all 0.2s",
-                  background: "white"
-                }}
-                onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-                onBlur={(e) => e.target.style.borderColor = "#e2e8f0"}
-              />
-            </div>
-
-            <div>
-              <label style={{ 
-                display: "block", 
-                fontSize: "0.75rem", 
-                fontWeight: "500", 
-                color: "#64748b",
-                marginBottom: "0.25rem"
-              }}>Index Type</label>
-              <select 
-                value={indexType} 
-                onChange={(e) => setIndexType(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "0.625rem 0.75rem",
-                  border: "1.5px solid #e2e8f0",
-                  borderRadius: "8px",
-                  fontSize: "0.875rem",
-                  outline: "none",
-                  transition: "all 0.2s",
-                  background: "white",
-                  cursor: "pointer"
-                }}
-                onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-                onBlur={(e) => e.target.style.borderColor = "#e2e8f0"}
-              >
-                <option value="NDVI">NDVI</option>
-                <option value="NDWI">NDWI</option>
-                <option value="NSMI">NSMI</option>
-                <option value="TRUE_COLOR">True Color</option>
-              </select>
-            </div>
-
-            <button 
-              onClick={fetchComposite}
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "1fr 1fr 100px 140px auto 1fr", 
+          gap: "0.75rem",
+          alignItems: "end"
+        }}>
+          <div>
+            <label style={{ 
+              display: "block", 
+              fontSize: "0.75rem", 
+              fontWeight: "500", 
+              color: "#64748b",
+              marginBottom: "0.25rem",
+              fontFamily: "'Times New Roman', Times, serif"
+            }}>Start Date</label>
+            <input 
+              type="date" 
+              value={form.start_date} 
+              onChange={(e) => setForm({ ...form, start_date: e.target.value })} 
               style={{
-                padding: "0.625rem 1.5rem",
-                background: "#3b82f6",
-                color: "white",
-                border: "1.5px solid #2563eb",
-                borderRadius: "8px",
+                width: "100%",
+                padding: "0.625rem 0.75rem",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: "4px",
+                fontSize: "0.875rem",
+                outline: "none",
+                transition: "all 0.2s",
+                background: "white",
+                fontFamily: "'Times New Roman', Times, serif"
+              }}
+              onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+              onBlur={(e) => e.target.style.borderColor = "#e2e8f0"}
+            />
+          </div>
+
+          <div>
+            <label style={{ 
+              display: "block", 
+              fontSize: "0.75rem", 
+              fontWeight: "500", 
+              color: "#64748b",
+              marginBottom: "0.25rem",
+              fontFamily: "'Times New Roman', Times, serif"
+            }}>End Date</label>
+            <input 
+              type="date" 
+              value={form.end_date} 
+              onChange={(e) => setForm({ ...form, end_date: e.target.value })} 
+              style={{
+                width: "100%",
+                padding: "0.625rem 0.75rem",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: "4px",
+                fontSize: "0.875rem",
+                outline: "none",
+                transition: "all 0.2s",
+                background: "white",
+                fontFamily: "'Times New Roman', Times, serif"
+              }}
+              onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+              onBlur={(e) => e.target.style.borderColor = "#e2e8f0"}
+            />
+          </div>
+
+          <div>
+            <label style={{ 
+              display: "block", 
+              fontSize: "0.75rem", 
+              fontWeight: "500", 
+              color: "#64748b",
+              marginBottom: "0.25rem",
+              fontFamily: "'Times New Roman', Times, serif"
+            }}>Cloud %</label>
+            <input 
+              type="number" 
+              min="0" 
+              max="100" 
+              value={form.max_cloud} 
+              onChange={(e) => setForm({ ...form, max_cloud: e.target.value })} 
+              style={{
+                width: "100%",
+                padding: "0.625rem 0.75rem",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: "4px",
+                fontSize: "0.875rem",
+                outline: "none",
+                transition: "all 0.2s",
+                background: "white",
+                fontFamily: "'Times New Roman', Times, serif"
+              }}
+              onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+              onBlur={(e) => e.target.style.borderColor = "#e2e8f0"}
+            />
+          </div>
+
+          <div>
+            <label style={{ 
+              display: "block", 
+              fontSize: "0.75rem", 
+              fontWeight: "500", 
+              color: "#64748b",
+              marginBottom: "0.25rem",
+              fontFamily: "'Times New Roman', Times, serif"
+            }}>Index Type</label>
+            <select 
+              value={indexType} 
+              onChange={(e) => setIndexType(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "0.625rem 0.75rem",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: "4px",
+                fontSize: "0.875rem",
+                outline: "none",
+                transition: "all 0.2s",
+                background: "white",
+                cursor: "pointer",
+                fontFamily: "'Times New Roman', Times, serif"
+              }}
+              onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
+              onBlur={(e) => e.target.style.borderColor = "#e2e8f0"}
+            >
+              <option value="NDVI">NDVI</option>
+              <option value="NDWI">NDWI</option>
+              <option value="NSMI">NSMI</option>
+              <option value="TRUE_COLOR">True Color</option>
+            </select>
+          </div>
+
+          <button 
+            onClick={fetchComposite}
+            style={{
+              padding: "0.625rem 1.5rem",
+              background: "#3b82f6",
+              color: "white",
+              border: "1.5px solid #2563eb",
+              borderRadius: "4px",
+              fontSize: "0.875rem",
+              fontWeight: "500",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              fontFamily: "'Times New Roman', Times, serif"
+            }}
+            onMouseOver={(e) => {
+              e.target.style.background = "#2563eb";
+              e.target.style.transform = "translateY(-1px)";
+              e.target.style.boxShadow = "0 4px 6px rgba(37, 99, 235, 0.2)";
+            }}
+            onMouseOut={(e) => {
+              e.target.style.background = "#3b82f6";
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = "none";
+            }}
+          >
+            Load Composite
+          </button>
+
+          {downloadUrl && (
+            <a 
+              href={downloadUrl} 
+              target="_blank" 
+              rel="noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0.625rem 1.25rem",
+                background: "white",
+                color: "#3b82f6",
+                border: "1.5px solid #3b82f6",
+                borderRadius: "4px",
                 fontSize: "0.875rem",
                 fontWeight: "500",
-                cursor: "pointer",
+                textDecoration: "none",
                 transition: "all 0.2s",
-                whiteSpace: "nowrap"
+                whiteSpace: "nowrap",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                fontFamily: "'Times New Roman', Times, serif"
               }}
               onMouseOver={(e) => {
-                e.target.style.background = "#2563eb";
+                e.target.style.background = "#eff6ff";
                 e.target.style.transform = "translateY(-1px)";
-                e.target.style.boxShadow = "0 4px 6px rgba(37, 99, 235, 0.2)";
+                e.target.style.boxShadow = "0 4px 6px rgba(59, 130, 246, 0.2)";
               }}
               onMouseOut={(e) => {
-                e.target.style.background = "#3b82f6";
+                e.target.style.background = "white";
                 e.target.style.transform = "translateY(0)";
-                e.target.style.boxShadow = "none";
+                e.target.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
               }}
             >
-              Load Composite
-            </button>
-          </div>
+              📥 Download {indexType} GeoTIFF
+            </a>
+          )}
         </div>
+      </div>
 
-        <div style={{ 
-          flex: 1, 
-          border: "1.5px solid #e2e8f0", 
-          borderRadius: "12px", 
+      {/* Map Container with Padding */}
+      <div style={{
+        flex: 1,
+        padding: "10px",
+        overflow: "hidden"
+      }}>
+        <div style={{
+          width: "100%",
+          height: "100%",
+          borderRadius: "4px",
           overflow: "hidden",
-          boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
-          background: "white"
+          border: "1px solid #e2e8f0",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
         }}>
           <MapContainer center={[17.0, 81.8]} zoom={11} style={{ height: "100%", width: "100%" }}>
             <TileLayer
@@ -374,148 +434,219 @@ export default function MapWithTimeseries() {
             <ClickHandler onClick={(latlng) => fetchTimeseries(latlng)} />
           </MapContainer>
         </div>
-
-        {downloadUrl && (
-          <a 
-            href={downloadUrl} 
-            target="_blank" 
-            rel="noreferrer"
-            style={{
-              display: "inline-block",
-              padding: "0.75rem 1.25rem",
-              background: "white",
-              color: "#3b82f6",
-              border: "1.5px solid #3b82f6",
-              borderRadius: "8px",
-              fontSize: "0.875rem",
-              fontWeight: "500",
-              textDecoration: "none",
-              transition: "all 0.2s",
-              textAlign: "center",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-            }}
-            onMouseOver={(e) => {
-              e.target.style.background = "#eff6ff";
-              e.target.style.transform = "translateY(-1px)";
-              e.target.style.boxShadow = "0 4px 6px rgba(59, 130, 246, 0.2)";
-            }}
-            onMouseOut={(e) => {
-              e.target.style.background = "white";
-              e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
-            }}
-          >
-            📥 Download Cloud-Masked {indexType} GeoTIFF
-          </a>
-        )}
       </div>
 
-      {/* Right Panel - Time Series */}
-      <div style={{ 
-        display: "flex", 
-        flexDirection: "column", 
-        gap: "1rem"
-      }}>
-        <div style={{ 
-          background: "white", 
-          padding: "1.25rem", 
-          borderRadius: "12px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-          border: "1.5px solid #e2e8f0"
-        }}>
-          <h3 style={{ 
-            margin: "0 0 0.75rem 0", 
-            fontSize: "1.125rem", 
-            fontWeight: "600",
-            color: "#1e293b",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem"
-          }}>
-            📈 Time-Series Analytics
-          </h3>
-          
-          {selectedPoint && (
-            <div style={{
-              padding: "0.625rem",
-              background: "#f8fafc",
-              borderRadius: "6px",
-              fontSize: "0.8rem",
-              color: "#475569",
-              border: "1.5px solid #e2e8f0",
-              marginBottom: "0.75rem"
-            }}>
-              <span style={{ fontWeight: "500" }}>📍</span> {selectedPoint.lat.toFixed(4)}, {selectedPoint.lng.toFixed(4)}
-            </div>
-          )}
-          
-          {stats && (
-            <div style={{ 
-              display: "grid", 
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "0.5rem"
-            }}>
-              <div style={{
-                padding: "0.5rem",
-                background: "linear-gradient(to right, #ecfdf5, #f0fdf4)",
-                borderRadius: "6px",
-                border: "1.5px solid #a7f3d0"
-              }}>
-                <div style={{ fontSize: "0.65rem", color: "#065f46", fontWeight: "500" }}>NDVI</div>
-                <div style={{ fontSize: "0.95rem", fontWeight: "600", color: "#047857" }}>{stats.avg_ndvi}</div>
-              </div>
-              <div style={{
-                padding: "0.5rem",
-                background: "linear-gradient(to right, #eff6ff, #dbeafe)",
-                borderRadius: "6px",
-                border: "1.5px solid #93c5fd"
-              }}>
-                <div style={{ fontSize: "0.65rem", color: "#1e40af", fontWeight: "500" }}>NDWI</div>
-                <div style={{ fontSize: "0.95rem", fontWeight: "600", color: "#1d4ed8" }}>{stats.avg_ndwi}</div>
-              </div>
-              <div style={{
-                padding: "0.5rem",
-                background: "linear-gradient(to right, #fffbeb, #fef3c7)",
-                borderRadius: "6px",
-                border: "1.5px solid #fcd34d"
-              }}>
-                <div style={{ fontSize: "0.65rem", color: "#92400e", fontWeight: "500" }}>NSMI</div>
-                <div style={{ fontSize: "0.95rem", fontWeight: "600", color: "#b45309" }}>{stats.avg_nsmi}</div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ 
-          flex: 1,
-          background: "white", 
-          padding: "1.25rem", 
-          borderRadius: "12px",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-          border: "1.5px solid #e2e8f0",
+      {/* Full Screen Modal Overlay */}
+      {showModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0, 0, 0, 0.6)",
           display: "flex",
-          flexDirection: "column"
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: "10px",
+          fontFamily: "'Times New Roman', Times, serif"
         }}>
-          {timeseries.length > 0 ? (
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <Line data={chartData} options={chartOptions} />
+          {/* Modal Content */}
+          <div style={{
+            background: "white",
+            borderRadius: "4px",
+            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.3)",
+            width: "100%",
+            height: "100%",
+            maxHeight: "calc(100vh - 20px)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            fontFamily: "'Times New Roman', Times, serif"
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: "2rem",
+              borderBottom: "2px solid #e2e8f0",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexShrink: 0,
+              background: "#f8fafc"
+            }}>
+              <div>
+                <h3 style={{ 
+                  margin: "0 0 0.5rem 0", 
+                  fontSize: "1.75rem", 
+                  fontWeight: "normal",
+                  color: "#1e293b",
+                  fontFamily: "'Times New Roman', Times, serif"
+                }}>
+                  📈 Time-Series Analytics
+                </h3>
+                {selectedPoint && (
+                  <div style={{
+                    fontSize: "0.95rem",
+                    color: "#64748b",
+                    fontWeight: "normal",
+                    fontFamily: "'Times New Roman', Times, serif"
+                  }}>
+                    📍 Location: {selectedPoint.lat.toFixed(4)}, {selectedPoint.lng.toFixed(4)}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={closeModal}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "2rem",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  padding: "0.5rem 1rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s"
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.color = "#1e293b";
+                  e.target.style.background = "#e2e8f0";
+                  e.target.style.borderRadius = "4px";
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.color = "#94a3b8";
+                  e.target.style.background = "none";
+                }}
+              >
+                ✕
+              </button>
             </div>
-          ) : (
+
+            {/* Modal Body */}
             <div style={{
               flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#94a3b8",
-              fontSize: "0.875rem",
-              textAlign: "center",
-              padding: "2rem"
+              overflow: "auto",
+              padding: "2rem",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "2rem"
             }}>
-              Click any location on the map to analyze crop condition
+              {/* Left Side - Statistics */}
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.5rem"
+              }}>
+                <h4 style={{
+                  margin: "0",
+                  fontSize: "1.25rem",
+                  fontWeight: "normal",
+                  color: "#1e293b",
+                  fontFamily: "'Times New Roman', Times, serif"
+                }}>
+                  📊 Statistics Summary
+                </h4>
+
+                {stats ? (
+                  <div style={{ 
+                    display: "grid", 
+                    gridTemplateColumns: "1fr",
+                    gap: "0.75rem"
+                  }}>
+                    <div style={{
+                      padding: "0.9rem 1rem",
+                      background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)",
+                      borderRadius: "4px",
+                      border: "2px solid #a7f3d0"
+                    }}>
+                      <div style={{ fontSize: "0.75rem", color: "#065f46", fontWeight: "600", marginBottom: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>NDVI (Vegetation Index)</div>
+                      <div style={{ fontSize: "1.5rem", fontWeight: "normal", color: "#047857", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_ndvi}</div>
+                      <div style={{ fontSize: "0.7rem", color: "#059669", marginTop: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>Average vegetation health</div>
+                    </div>
+
+                    <div style={{
+                      padding: "0.9rem 1rem",
+                      background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+                      borderRadius: "4px",
+                      border: "2px solid #93c5fd"
+                    }}>
+                      <div style={{ fontSize: "0.75rem", color: "#1e40af", fontWeight: "600", marginBottom: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>NDWI (Water Index)</div>
+                      <div style={{ fontSize: "1.5rem", fontWeight: "normal", color: "#1d4ed8", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_ndwi}</div>
+                      <div style={{ fontSize: "0.7rem", color: "#2563eb", marginTop: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>Average water content</div>
+                    </div>
+
+                    <div style={{
+                      padding: "0.9rem 1rem",
+                      background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                      borderRadius: "4px",
+                      border: "2px solid #fcd34d"
+                    }}>
+                      <div style={{ fontSize: "0.75rem", color: "#92400e", fontWeight: "600", marginBottom: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>NSMI (Soil Moisture)</div>
+                      <div style={{ fontSize: "1.5rem", fontWeight: "normal", color: "#b45309", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_nsmi}</div>
+                      <div style={{ fontSize: "0.7rem", color: "#d97706", marginTop: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>Average soil moisture</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: "1.5rem 1rem",
+                    color: "#94a3b8",
+                    fontSize: "0.95rem",
+                    textAlign: "center",
+                    fontFamily: "'Times New Roman', Times, serif"
+                  }}>
+                    Loading statistics...
+                  </div>
+                )}
+              </div>
+
+              {/* Right Side - Chart */}
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.5rem"
+              }}>
+                <h4 style={{
+                  margin: "0",
+                  fontSize: "1.25rem",
+                  fontWeight: "normal",
+                  color: "#1e293b",
+                  fontFamily: "'Times New Roman', Times, serif"
+                }}>
+                  📉 Time Series Trend
+                </h4>
+
+                <div style={{
+                  flex: 1,
+                  minHeight: "400px",
+                  background: "#f8fafc",
+                  borderRadius: "4px",
+                  padding: "1.5rem",
+                  border: "1px solid #e2e8f0"
+                }}>
+                  {timeseries.length > 0 ? (
+                    <Line data={chartData} options={chartOptions} />
+                  ) : (
+                    <div style={{
+                      width: "100%",
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#94a3b8",
+                      fontSize: "1rem",
+                      fontFamily: "'Times New Roman', Times, serif"
+                    }}>
+                      Loading chart...
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
