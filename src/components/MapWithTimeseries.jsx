@@ -37,7 +37,7 @@ ChartJS.register(
   Tooltip
 );
 
-const BACKEND_URL = "http://127.0.0.1:5000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 // Click handler enabling point picking + smooth animation
 function ClickHandler({ onClick }) {
