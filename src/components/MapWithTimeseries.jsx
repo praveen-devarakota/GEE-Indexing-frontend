@@ -59,6 +59,8 @@ export default function MapWithTimeseries() {
   const [timeseries, setTimeseries] = useState([]);
   const [stats, setStats] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [popupPosition, setPopupPosition] = useState(null);
 
   const [form, setForm] = useState({
     start_date: "2020-01-01",
@@ -106,6 +108,8 @@ export default function MapWithTimeseries() {
   const fetchTimeseries = async (latlng) => {
     setSelectedPoint(latlng);
     setShowModal(true);
+    setIsFullscreen(false);
+    setPopupPosition(latlng);
 
     const res = await fetch(`${BACKEND_URL}/api/timeseries`, {
       method: "POST",
@@ -179,6 +183,10 @@ export default function MapWithTimeseries() {
 
   const closeModal = () => {
     setShowModal(false);
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
 
   return (
@@ -414,7 +422,8 @@ export default function MapWithTimeseries() {
       <div style={{
         flex: 1,
         padding: "10px",
-        overflow: "hidden"
+        overflow: "hidden",
+        position: "relative"
       }}>
         <div style={{
           width: "100%",
@@ -422,7 +431,8 @@ export default function MapWithTimeseries() {
           borderRadius: "4px",
           overflow: "hidden",
           border: "1px solid #e2e8f0",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          position: "relative"
         }}>
           <MapContainer center={[17.0, 81.8]} zoom={11} style={{ height: "100%", width: "100%" }}>
             <TileLayer
@@ -433,11 +443,273 @@ export default function MapWithTimeseries() {
             {selectedPoint && <Marker position={[selectedPoint.lat, selectedPoint.lng]} />}
             <ClickHandler onClick={(latlng) => fetchTimeseries(latlng)} />
           </MapContainer>
+
+          {/* Floating Popup - Positioned Beside Point */}
+          {showModal && !isFullscreen && (
+            <div style={{
+              position: "absolute",
+              left: "calc(50% + 140px)",
+              top: "50%",
+              transform: "translate(0, -50%)",
+              width: "620px",
+              maxHeight: "470px",
+              background: "white",
+              borderRadius: "8px",
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+              zIndex: 1000,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              animation: "popupSlideIn 0.3s ease-out",
+              fontFamily: "'Times New Roman', Times, serif",
+              right: "20px"
+            }}>
+              <style>{`
+                @keyframes popupSlideIn {
+                  from {
+                    opacity: 0;
+                    transform: translate(0, -50%) scale(0.95);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translate(0, -50%) scale(1);
+                  }
+                }
+                
+                @media (max-width: 1400px) {
+                  .popup-container {
+                    position: absolute !important;
+                    left: auto !important;
+                    right: 20px !important;
+                    width: 520px !important;
+                  }
+                }
+                
+                @media (max-width: 1200px) {
+                  .popup-container {
+                    width: 480px !important;
+                  }
+                }
+                
+                @media (max-width: 1000px) {
+                  .popup-container {
+                    width: 420px !important;
+                    left: auto !important;
+                    right: 15px !important;
+                  }
+                }
+              `}</style>
+
+              {/* Header */}
+              <div style={{
+                padding: "1rem",
+                borderBottom: "1.5px solid #e2e8f0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "#f8fafc",
+                flexShrink: 0
+              }}>
+                <div>
+                  <h4 style={{ 
+                    margin: "0 0 0.25rem 0", 
+                    fontSize: "1rem", 
+                    fontWeight: "normal",
+                    color: "#1e293b",
+                    fontFamily: "'Times New Roman', Times, serif"
+                  }}>
+                    📈 Analytics
+                  </h4>
+                  {selectedPoint && (
+                    <div style={{
+                      fontSize: "0.7rem",
+                      color: "#64748b",
+                      fontFamily: "'Times New Roman', Times, serif"
+                    }}>
+                      📍 {selectedPoint.lat.toFixed(4)}, {selectedPoint.lng.toFixed(4)}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button
+                    onClick={toggleFullscreen}
+                    style={{
+                      background: "none",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      padding: "0.4rem 0.6rem",
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                      color: "#475569",
+                      transition: "all 0.2s",
+                      fontFamily: "'Times New Roman', Times, serif"
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = "#f1f5f9";
+                      e.target.style.borderColor = "#94a3b8";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = "none";
+                      e.target.style.borderColor = "#cbd5e1";
+                    }}
+                    title="Fullscreen"
+                  >
+                    ⛶
+                  </button>
+                  <button
+                    onClick={closeModal}
+                    style={{
+                      background: "none",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      padding: "0.4rem 0.6rem",
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                      color: "#475569",
+                      transition: "all 0.2s",
+                      fontFamily: "'Times New Roman', Times, serif"
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = "#f1f5f9";
+                      e.target.style.borderColor = "#94a3b8";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = "none";
+                      e.target.style.borderColor = "#cbd5e1";
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Content - Two Column Layout */}
+              <div style={{
+                flex: 1,
+                overflow: "auto",
+                padding: "1rem",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "1rem"
+              }}>
+                {/* Left Side - Statistics */}
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.75rem"
+                }}>
+                  <h5 style={{
+                    margin: "0 0 0.5rem 0",
+                    fontSize: "0.9rem",
+                    fontWeight: "600",
+                    color: "#1e293b",
+                    fontFamily: "'Times New Roman', Times, serif"
+                  }}>
+                    📊 Stats
+                  </h5>
+
+                  {stats ? (
+                    <>
+                      <div style={{
+                        padding: "0.6rem 0.8rem",
+                        background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)",
+                        borderRadius: "4px",
+                        border: "1.5px solid #a7f3d0"
+                      }}>
+                        <div style={{ fontSize: "0.7rem", color: "#065f46", fontWeight: "600", marginBottom: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>NDVI</div>
+                        <div style={{ fontSize: "1.2rem", fontWeight: "normal", color: "#047857", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_ndvi}</div>
+                        <div style={{ fontSize: "0.65rem", color: "#059669", marginTop: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>Vegetation</div>
+                      </div>
+
+                      <div style={{
+                        padding: "0.6rem 0.8rem",
+                        background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+                        borderRadius: "4px",
+                        border: "1.5px solid #93c5fd"
+                      }}>
+                        <div style={{ fontSize: "0.7rem", color: "#1e40af", fontWeight: "600", marginBottom: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>NDWI</div>
+                        <div style={{ fontSize: "1.2rem", fontWeight: "normal", color: "#1d4ed8", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_ndwi}</div>
+                        <div style={{ fontSize: "0.65rem", color: "#2563eb", marginTop: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>Water</div>
+                      </div>
+
+                      <div style={{
+                        padding: "0.6rem 0.8rem",
+                        background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                        borderRadius: "4px",
+                        border: "1.5px solid #fcd34d"
+                      }}>
+                        <div style={{ fontSize: "0.7rem", color: "#92400e", fontWeight: "600", marginBottom: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>NSMI</div>
+                        <div style={{ fontSize: "1.2rem", fontWeight: "normal", color: "#b45309", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_nsmi}</div>
+                        <div style={{ fontSize: "0.65rem", color: "#d97706", marginTop: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>Soil</div>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{
+                      textAlign: "center",
+                      color: "#94a3b8",
+                      fontSize: "0.85rem",
+                      padding: "1rem",
+                      fontFamily: "'Times New Roman', Times, serif"
+                    }}>
+                      Loading...
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Side - Chart */}
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem"
+                }}>
+                  <h5 style={{
+                    margin: "0 0 0.5rem 0",
+                    fontSize: "0.9rem",
+                    fontWeight: "600",
+                    color: "#1e293b",
+                    fontFamily: "'Times New Roman', Times, serif"
+                  }}>
+                    📉 Trend
+                  </h5>
+
+                  {timeseries.length > 0 ? (
+                    <div style={{
+                      flex: 1,
+                      minHeight: "280px",
+                      background: "#f8fafc",
+                      borderRadius: "4px",
+                      padding: "0.75rem",
+                      border: "1px solid #e2e8f0"
+                    }}>
+                      <Line data={chartData} options={chartOptions} />
+                    </div>
+                  ) : (
+                    <div style={{
+                      flex: 1,
+                      minHeight: "280px",
+                      background: "#f8fafc",
+                      borderRadius: "4px",
+                      padding: "0.75rem",
+                      border: "1px solid #e2e8f0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#94a3b8",
+                      fontSize: "0.85rem",
+                      fontFamily: "'Times New Roman', Times, serif"
+                    }}>
+                      Loading chart...
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Full Screen Modal Overlay */}
-      {showModal && (
+      {/* Full Screen Modal */}
+      {showModal && isFullscreen && (
         <div style={{
           position: "fixed",
           top: 0,
@@ -448,14 +720,14 @@ export default function MapWithTimeseries() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          zIndex: 1000,
+          zIndex: 1001,
           padding: "10px",
           fontFamily: "'Times New Roman', Times, serif"
         }}>
           {/* Modal Content */}
           <div style={{
             background: "white",
-            borderRadius: "4px",
+            borderRadius: "8px",
             boxShadow: "0 10px 40px rgba(0, 0, 0, 0.3)",
             width: "100%",
             height: "100%",
@@ -496,32 +768,60 @@ export default function MapWithTimeseries() {
                   </div>
                 )}
               </div>
-              <button
-                onClick={closeModal}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "2rem",
-                  cursor: "pointer",
-                  color: "#94a3b8",
-                  padding: "0.5rem 1rem",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.2s"
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.color = "#1e293b";
-                  e.target.style.background = "#e2e8f0";
-                  e.target.style.borderRadius = "4px";
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.color = "#94a3b8";
-                  e.target.style.background = "none";
-                }}
-              >
-                ✕
-              </button>
+              <div style={{ display: "flex", gap: "1rem" }}>
+                <button
+                  onClick={toggleFullscreen}
+                  style={{
+                    background: "white",
+                    border: "1.5px solid #cbd5e1",
+                    borderRadius: "6px",
+                    padding: "0.6rem 1rem",
+                    cursor: "pointer",
+                    fontSize: "0.9rem",
+                    color: "#475569",
+                    transition: "all 0.2s",
+                    fontFamily: "'Times New Roman', Times, serif"
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.background = "#f1f5f9";
+                    e.target.style.borderColor = "#94a3b8";
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.background = "white";
+                    e.target.style.borderColor = "#cbd5e1";
+                  }}
+                  title="Exit Fullscreen"
+                >
+                  Exit ⛶
+                </button>
+                <button
+                  onClick={closeModal}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: "2rem",
+                    cursor: "pointer",
+                    color: "#94a3b8",
+                    padding: "0.5rem 1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.2s",
+                    fontFamily: "'Times New Roman', Times, serif"
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.color = "#1e293b";
+                    e.target.style.background = "#e2e8f0";
+                    e.target.style.borderRadius = "4px";
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.color = "#94a3b8";
+                    e.target.style.background = "none";
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Modal Body */}
@@ -556,36 +856,36 @@ export default function MapWithTimeseries() {
                     gap: "0.75rem"
                   }}>
                     <div style={{
-                      padding: "0.9rem 1rem",
+                      padding: "0.6rem 0.8rem",
                       background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)",
                       borderRadius: "4px",
-                      border: "2px solid #a7f3d0"
+                      border: "1.5px solid #a7f3d0"
                     }}>
-                      <div style={{ fontSize: "0.75rem", color: "#065f46", fontWeight: "600", marginBottom: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>NDVI (Vegetation Index)</div>
-                      <div style={{ fontSize: "1.5rem", fontWeight: "normal", color: "#047857", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_ndvi}</div>
-                      <div style={{ fontSize: "0.7rem", color: "#059669", marginTop: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>Average vegetation health</div>
+                      <div style={{ fontSize: "0.7rem", color: "#065f46", fontWeight: "600", marginBottom: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>NDVI</div>
+                      <div style={{ fontSize: "1.2rem", fontWeight: "normal", color: "#047857", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_ndvi}</div>
+                      <div style={{ fontSize: "0.65rem", color: "#059669", marginTop: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>Vegetation</div>
                     </div>
 
                     <div style={{
-                      padding: "0.9rem 1rem",
+                      padding: "0.6rem 0.8rem",
                       background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
                       borderRadius: "4px",
-                      border: "2px solid #93c5fd"
+                      border: "1.5px solid #93c5fd"
                     }}>
-                      <div style={{ fontSize: "0.75rem", color: "#1e40af", fontWeight: "600", marginBottom: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>NDWI (Water Index)</div>
-                      <div style={{ fontSize: "1.5rem", fontWeight: "normal", color: "#1d4ed8", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_ndwi}</div>
-                      <div style={{ fontSize: "0.7rem", color: "#2563eb", marginTop: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>Average water content</div>
+                      <div style={{ fontSize: "0.7rem", color: "#1e40af", fontWeight: "600", marginBottom: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>NDWI</div>
+                      <div style={{ fontSize: "1.2rem", fontWeight: "normal", color: "#1d4ed8", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_ndwi}</div>
+                      <div style={{ fontSize: "0.65rem", color: "#2563eb", marginTop: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>Water</div>
                     </div>
 
                     <div style={{
-                      padding: "0.9rem 1rem",
+                      padding: "0.6rem 0.8rem",
                       background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
                       borderRadius: "4px",
-                      border: "2px solid #fcd34d"
+                      border: "1.5px solid #fcd34d"
                     }}>
-                      <div style={{ fontSize: "0.75rem", color: "#92400e", fontWeight: "600", marginBottom: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>NSMI (Soil Moisture)</div>
-                      <div style={{ fontSize: "1.5rem", fontWeight: "normal", color: "#b45309", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_nsmi}</div>
-                      <div style={{ fontSize: "0.7rem", color: "#d97706", marginTop: "0.25rem", fontFamily: "'Times New Roman', Times, serif" }}>Average soil moisture</div>
+                      <div style={{ fontSize: "0.7rem", color: "#92400e", fontWeight: "600", marginBottom: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>NSMI</div>
+                      <div style={{ fontSize: "1.2rem", fontWeight: "normal", color: "#b45309", fontFamily: "'Times New Roman', Times, serif" }}>{stats.avg_nsmi}</div>
+                      <div style={{ fontSize: "0.65rem", color: "#d97706", marginTop: "0.15rem", fontFamily: "'Times New Roman', Times, serif" }}>Soil</div>
                     </div>
                   </div>
                 ) : (
