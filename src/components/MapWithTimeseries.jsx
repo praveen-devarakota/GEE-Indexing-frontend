@@ -191,7 +191,14 @@ export default function MapWithTimeseries() {
     if (!data.success) return alert(data.error);
 
     setTimeseries(data.data);
-    setStats(data.statistics);
+    const avg = (key) =>
+  (data.data.reduce((s, d) => s + d[key], 0) / data.data.length).toFixed(4);
+
+setStats({
+  avg_ndvi: avg("NDVI"),
+  avg_ndwi: avg("NDWI"),
+  avg_nsmi: avg("NSMI"),
+});
   };
 
   const chartData = {
