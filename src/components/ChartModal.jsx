@@ -19,6 +19,62 @@ ChartJS.register(
   Tooltip
 );
 
+// Statistics Card Component
+function StatCard({
+  label,
+  value,
+  unit,
+  bgGradient,
+  borderColor,
+  textColor,
+  unitColor,
+}) {
+  return (
+    <div
+      style={{
+        padding: "1.25rem",
+        background: bgGradient,
+        borderRadius: "14px",
+        border: `1px solid ${borderColor}`,
+        boxShadow: `0 4px 12px ${textColor}26`,
+      }}
+    >
+      <div
+        style={{
+          fontSize: "0.75rem",
+          color: textColor,
+          fontWeight: "700",
+          marginBottom: "0.625rem",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: "2.25rem",
+          fontWeight: "700",
+          color: textColor,
+          marginBottom: "0.375rem",
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </div>
+      <div
+        style={{
+          fontSize: "0.75rem",
+          color: unitColor,
+          fontWeight: "600",
+        }}
+      >
+        {unit}
+      </div>
+    </div>
+  );
+}
+
 export function ChartModal({
   showModal,
   isFullscreen,
@@ -36,25 +92,34 @@ export function ChartModal({
         label: "NDVI",
         data: timeseries.map((d) => d.NDVI),
         borderColor: "#10b981",
-        borderWidth: 2,
-        fill: false,
+        backgroundColor: "rgba(16, 185, 129, 0.1)",
+        borderWidth: 2.5,
+        fill: true,
         tension: 0.4,
+        pointRadius: 3,
+        pointHoverRadius: 5,
       },
       {
         label: "NDWI",
         data: timeseries.map((d) => d.NDWI),
         borderColor: "#3b82f6",
-        borderWidth: 2,
-        fill: false,
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
+        borderWidth: 2.5,
+        fill: true,
         tension: 0.4,
+        pointRadius: 3,
+        pointHoverRadius: 5,
       },
       {
         label: "NSMI",
         data: timeseries.map((d) => d.NSMI),
         borderColor: "#f59e0b",
-        borderWidth: 2,
-        fill: false,
+        backgroundColor: "rgba(245, 158, 11, 0.1)",
+        borderWidth: 2.5,
+        fill: true,
         tension: 0.4,
+        pointRadius: 3,
+        pointHoverRadius: 5,
       },
     ],
   };
@@ -65,209 +130,192 @@ export function ChartModal({
     plugins: {
       legend: {
         position: "top",
+        labels: {
+          usePointStyle: true,
+          padding: 15,
+          font: {
+            size: 12,
+            family:
+              "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            weight: "500",
+          },
+        },
+      },
+      tooltip: {
+        backgroundColor: "rgba(255, 255, 255, 0.95)",
+        titleColor: "#1e293b",
+        bodyColor: "#475569",
+        borderColor: "#e2e8f0",
+        borderWidth: 1,
+        padding: 12,
+        displayColors: true,
+        boxPadding: 6,
+        usePointStyle: true,
+        font: {
+          family:
+            "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        },
       },
     },
     scales: {
       y: {
         grid: {
-          color: "rgba(0, 0, 0, 0.05)",
+          color: "rgba(148, 163, 184, 0.1)",
+          drawBorder: false,
+        },
+        ticks: {
+          font: {
+            size: 11,
+            family:
+              "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          },
+          color: "#64748b",
         },
       },
       x: {
         grid: {
-          color: "rgba(0, 0, 0, 0.05)",
+          color: "rgba(148, 163, 184, 0.1)",
+          drawBorder: false,
+        },
+        ticks: {
+          font: {
+            size: 11,
+            family:
+              "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          },
+          color: "#64748b",
+          maxRotation: 45,
+          minRotation: 45,
         },
       },
     },
   };
 
-  // Statistics Card Component
-  function StatCard({ label, value, unit, bgGradient, borderColor, textColor, unitColor }) {
-    return (
-      <div
-        style={{
-          padding: "0.6rem 0.8rem",
-          background: bgGradient,
-          borderRadius: "4px",
-          border: `1.5px solid ${borderColor}`,
-        }}
-      >
-        <div
-          style={{
-            fontSize: "0.7rem",
-            color: textColor,
-            fontWeight: "600",
-            marginBottom: "0.15rem",
-            fontFamily: "'Times New Roman', Times, serif",
-          }}
-        >
-          {label}
-        </div>
-        <div
-          style={{
-            fontSize: "1.2rem",
-            fontWeight: "normal",
-            color: textColor,
-            fontFamily: "'Times New Roman', Times, serif",
-          }}
-        >
-          {value}
-        </div>
-        <div
-          style={{
-            fontSize: "0.65rem",
-            color: unitColor,
-            marginTop: "0.15rem",
-            fontFamily: "'Times New Roman', Times, serif",
-          }}
-        >
-          {unit}
-        </div>
-      </div>
-    );
-  }
+  if (!showModal || !isFullscreen) return null;
 
-  // Floating Popup Modal (Non-fullscreen)
-  if (showModal && !isFullscreen) {
-    return (
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(0, 0, 0, 0.7)",
+        backdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1001,
+        padding: "1.5rem",
+        animation: "fadeIn 0.2s ease-out",
+      }}
+    >
+      {/* Modal Content */}
       <div
         style={{
-          position: "absolute",
-          left: "calc(50% + 140px)",
-          top: "50%",
-          transform: "translate(0, -50%)",
-          width: "620px",
-          maxHeight: "470px",
           background: "white",
-          borderRadius: "8px",
-          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-          zIndex: 1000,
+          borderRadius: "20px",
+          boxShadow: "0 25px 80px rgba(0, 0, 0, 0.4)",
+          width: "100%",
+          height: "100%",
+          maxWidth: "1400px",
+          maxHeight: "calc(100vh - 3rem)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          animation: "popupSlideIn 0.3s ease-out",
-          fontFamily: "'Times New Roman', Times, serif",
-          right: "20px",
         }}
       >
-        <style>{`
-          @keyframes popupSlideIn {
-            from {
-              opacity: 0;
-              transform: translate(0, -50%) scale(0.95);
-            }
-            to {
-              opacity: 1;
-              transform: translate(0, -50%) scale(1);
-            }
-          }
-          
-          @media (max-width: 1400px) {
-            .popup-container {
-              position: absolute !important;
-              left: auto !important;
-              right: 20px !important;
-              width: 520px !important;
-            }
-          }
-          
-          @media (max-width: 1200px) {
-            .popup-container {
-              width: 480px !important;
-            }
-          }
-          
-          @media (max-width: 1000px) {
-            .popup-container {
-              width: 420px !important;
-              left: auto !important;
-              right: 15px !important;
-            }
-          }
-        `}</style>
-
-        {/* Header */}
+        {/* Modal Header */}
         <div
           style={{
-            padding: "1rem",
-            borderBottom: "1.5px solid #e2e8f0",
+            padding: "1.25rem 2rem",
+            borderBottom: "1px solid #e2e8f0",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            background: "#f8fafc",
             flexShrink: 0,
+            background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
           }}
         >
           <div>
-            <h4
+            <h3
               style={{
-                margin: "0 0 0.25rem 0",
-                fontSize: "1rem",
-                fontWeight: "normal",
-                color: "#1e293b",
-                fontFamily: "'Times New Roman', Times, serif",
+                margin: "0 0 0.35rem 0",
+                fontSize: "1.5rem",
+                fontWeight: "700",
+                color: "#0f172a",
+                letterSpacing: "-0.025em",
               }}
             >
-              📈 Analytics
-            </h4>
+              📊 Analytics Dashboard
+            </h3>
             {selectedPoint && (
               <div
                 style={{
-                  fontSize: "0.7rem",
+                  fontSize: "0.875rem",
                   color: "#64748b",
-                  fontFamily: "'Times New Roman', Times, serif",
+                  fontWeight: "500",
                 }}
               >
-                📍 {selectedPoint.lat.toFixed(4)}, {selectedPoint.lng.toFixed(4)}
+                📍 Location: {selectedPoint.lat.toFixed(4)},
+                {selectedPoint.lng.toFixed(4)}
               </div>
             )}
           </div>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
             <button
               onClick={toggleFullscreen}
               style={{
-                background: "none",
-                border: "1px solid #cbd5e1",
-                borderRadius: "4px",
-                padding: "0.4rem 0.6rem",
+                background: "white",
+                border: "2px solid #e2e8f0",
+                borderRadius: "10px",
+                padding: "0.625rem 1.25rem",
                 cursor: "pointer",
-                fontSize: "0.8rem",
+                fontSize: "0.875rem",
                 color: "#475569",
-                transition: "all 0.2s",
-                fontFamily: "'Times New Roman', Times, serif",
+                transition: "all 0.2s ease",
+                fontWeight: "600",
               }}
               onMouseOver={(e) => {
-                e.target.style.background = "#f1f5f9";
-                e.target.style.borderColor = "#94a3b8";
+                e.target.style.background = "#f8fafc";
+                e.target.style.borderColor = "#3b82f6";
+                e.target.style.color = "#3b82f6";
               }}
               onMouseOut={(e) => {
-                e.target.style.background = "none";
-                e.target.style.borderColor = "#cbd5e1";
+                e.target.style.background = "white";
+                e.target.style.borderColor = "#e2e8f0";
+                e.target.style.color = "#475569";
               }}
-              title="Fullscreen"
+              title="Exit Fullscreen"
             >
-              ⛶
+              ← Exit Fullscreen
             </button>
             <button
               onClick={closeModal}
               style={{
-                background: "none",
-                border: "1px solid #cbd5e1",
-                borderRadius: "4px",
-                padding: "0.4rem 0.6rem",
+                background: "white",
+                border: "2px solid #e2e8f0",
+                borderRadius: "10px",
+                padding: "0.625rem 0.875rem",
                 cursor: "pointer",
-                fontSize: "0.8rem",
-                color: "#475569",
-                transition: "all 0.2s",
-                fontFamily: "'Times New Roman', Times, serif",
+                fontSize: "1.25rem",
+                color: "#64748b",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s ease",
+                lineHeight: 1,
               }}
               onMouseOver={(e) => {
-                e.target.style.background = "#f1f5f9";
-                e.target.style.borderColor = "#94a3b8";
+                e.target.style.background = "#fef2f2";
+                e.target.style.borderColor = "#ef4444";
+                e.target.style.color = "#ef4444";
               }}
               onMouseOut={(e) => {
-                e.target.style.background = "none";
-                e.target.style.borderColor = "#cbd5e1";
+                e.target.style.background = "white";
+                e.target.style.borderColor = "#e2e8f0";
+                e.target.style.color = "#64748b";
               }}
             >
               ✕
@@ -275,382 +323,143 @@ export function ChartModal({
           </div>
         </div>
 
-        {/* Content - Two Column Layout */}
+        {/* Modal Body */}
         <div
           style={{
             flex: 1,
-            overflow: "auto",
-            padding: "1rem",
+            overflow: "hidden",
+            padding: "1.5rem 2rem",
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "1rem",
+            gridTemplateColumns: "320px 1fr",
+            gap: "2rem",
           }}
         >
           {/* Left Side - Statistics */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            <h5
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+              overflow: "auto",
+            }}
+          >
+            <h4
               style={{
-                margin: "0 0 0.5rem 0",
-                fontSize: "0.9rem",
-                fontWeight: "600",
-                color: "#1e293b",
-                fontFamily: "'Times New Roman', Times, serif",
+                margin: "0",
+                fontSize: "1.25rem",
+                fontWeight: "700",
+                color: "#0f172a",
+                letterSpacing: "-0.025em",
               }}
             >
-              📊 Stats
-            </h5>
+              Statistics Summary
+            </h4>
 
             {stats ? (
-              <>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.875rem",
+                }}
+              >
                 <StatCard
                   label="NDVI"
                   value={stats.avg_ndvi}
-                  unit="Vegetation"
-                  bgGradient="linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)"
+                  unit="Vegetation Index"
+                  bgGradient="linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
                   borderColor="#a7f3d0"
-                  textColor="#047857"
-                  unitColor="#059669"
+                  textColor="#059669"
+                  unitColor="#047857"
                 />
                 <StatCard
                   label="NDWI"
                   value={stats.avg_ndwi}
-                  unit="Water"
+                  unit="Water Index"
                   bgGradient="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
                   borderColor="#93c5fd"
-                  textColor="#1d4ed8"
-                  unitColor="#2563eb"
+                  textColor="#2563eb"
+                  unitColor="#1d4ed8"
                 />
                 <StatCard
                   label="NSMI"
                   value={stats.avg_nsmi}
-                  unit="Soil"
+                  unit="Soil Moisture Index"
                   bgGradient="linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
                   borderColor="#fcd34d"
-                  textColor="#b45309"
-                  unitColor="#d97706"
+                  textColor="#d97706"
+                  unitColor="#b45309"
                 />
-              </>
+              </div>
             ) : (
               <div
                 style={{
-                  textAlign: "center",
+                  padding: "2rem 1.5rem",
                   color: "#94a3b8",
-                  fontSize: "0.85rem",
-                  padding: "1rem",
-                  fontFamily: "'Times New Roman', Times, serif",
+                  fontSize: "0.938rem",
+                  textAlign: "center",
+                  fontWeight: "500",
                 }}
               >
-                Loading...
+                Loading statistics...
               </div>
             )}
           </div>
 
           {/* Right Side - Chart */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            <h5
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+              minHeight: 0,
+            }}
+          >
+            <h4
               style={{
-                margin: "0 0 0.5rem 0",
-                fontSize: "0.9rem",
-                fontWeight: "600",
-                color: "#1e293b",
-                fontFamily: "'Times New Roman', Times, serif",
+                margin: "0",
+                fontSize: "1.25rem",
+                fontWeight: "700",
+                color: "#0f172a",
+                letterSpacing: "-0.025em",
               }}
             >
-              📉 Trend
-            </h5>
+              Time Series Analysis
+            </h4>
 
-            {timeseries.length > 0 ? (
-              <div
-                style={{
-                  flex: 1,
-                  minHeight: "280px",
-                  background: "#f8fafc",
-                  borderRadius: "4px",
-                  padding: "0.75rem",
-                  border: "1px solid #e2e8f0",
-                }}
-              >
-                <Line data={chartData} options={chartOptions} />
-              </div>
-            ) : (
-              <div
-                style={{
-                  flex: 1,
-                  minHeight: "280px",
-                  background: "#f8fafc",
-                  borderRadius: "4px",
-                  padding: "0.75rem",
-                  border: "1px solid #e2e8f0",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#94a3b8",
-                  fontSize: "0.85rem",
-                  fontFamily: "'Times New Roman', Times, serif",
-                }}
-              >
-                Loading chart...
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Full Screen Modal
-  if (showModal && isFullscreen) {
-    return (
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0, 0, 0, 0.6)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1001,
-          padding: "10px",
-          fontFamily: "'Times New Roman', Times, serif",
-        }}
-      >
-        {/* Modal Content */}
-        <div
-          style={{
-            background: "white",
-            borderRadius: "8px",
-            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.3)",
-            width: "100%",
-            height: "100%",
-            maxHeight: "calc(100vh - 20px)",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            fontFamily: "'Times New Roman', Times, serif",
-          }}
-        >
-          {/* Modal Header */}
-          <div
-            style={{
-              padding: "2rem",
-              borderBottom: "2px solid #e2e8f0",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexShrink: 0,
-              background: "#f8fafc",
-            }}
-          >
-            <div>
-              <h3
-                style={{
-                  margin: "0 0 0.5rem 0",
-                  fontSize: "1.75rem",
-                  fontWeight: "normal",
-                  color: "#1e293b",
-                  fontFamily: "'Times New Roman', Times, serif",
-                }}
-              >
-                📈 Time-Series Analytics
-              </h3>
-              {selectedPoint && (
-                <div
-                  style={{
-                    fontSize: "0.95rem",
-                    color: "#64748b",
-                    fontWeight: "normal",
-                    fontFamily: "'Times New Roman', Times, serif",
-                  }}
-                >
-                  📍 Location: {selectedPoint.lat.toFixed(4)},
-                  {selectedPoint.lng.toFixed(4)}
-                </div>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: "1rem" }}>
-              <button
-                onClick={toggleFullscreen}
-                style={{
-                  background: "white",
-                  border: "1.5px solid #cbd5e1",
-                  borderRadius: "6px",
-                  padding: "0.6rem 1rem",
-                  cursor: "pointer",
-                  fontSize: "0.9rem",
-                  color: "#475569",
-                  transition: "all 0.2s",
-                  fontFamily: "'Times New Roman', Times, serif",
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.background = "#f1f5f9";
-                  e.target.style.borderColor = "#94a3b8";
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.background = "white";
-                  e.target.style.borderColor = "#cbd5e1";
-                }}
-                title="Exit Fullscreen"
-              >
-                Exit ⛶
-              </button>
-              <button
-                onClick={closeModal}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "2rem",
-                  cursor: "pointer",
-                  color: "#94a3b8",
-                  padding: "0.5rem 1rem",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.2s",
-                  fontFamily: "'Times New Roman', Times, serif",
-                }}
-                onMouseOver={(e) => {
-                  e.target.style.color = "#1e293b";
-                  e.target.style.background = "#e2e8f0";
-                  e.target.style.borderRadius = "4px";
-                }}
-                onMouseOut={(e) => {
-                  e.target.style.color = "#94a3b8";
-                  e.target.style.background = "none";
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          {/* Modal Body */}
-          <div
-            style={{
-              flex: 1,
-              overflow: "auto",
-              padding: "2rem",
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "2rem",
-            }}
-          >
-            {/* Left Side - Statistics */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-              <h4
-                style={{
-                  margin: "0",
-                  fontSize: "1.25rem",
-                  fontWeight: "normal",
-                  color: "#1e293b",
-                  fontFamily: "'Times New Roman', Times, serif",
-                }}
-              >
-                📊 Statistics Summary
-              </h4>
-
-              {stats ? (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr",
-                    gap: "0.75rem",
-                  }}
-                >
-                  <StatCard
-                    label="NDVI"
-                    value={stats.avg_ndvi}
-                    unit="Vegetation"
-                    bgGradient="linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)"
-                    borderColor="#a7f3d0"
-                    textColor="#047857"
-                    unitColor="#059669"
-                  />
-                  <StatCard
-                    label="NDWI"
-                    value={stats.avg_ndwi}
-                    unit="Water"
-                    bgGradient="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
-                    borderColor="#93c5fd"
-                    textColor="#1d4ed8"
-                    unitColor="#2563eb"
-                  />
-                  <StatCard
-                    label="NSMI"
-                    value={stats.avg_nsmi}
-                    unit="Soil"
-                    bgGradient="linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
-                    borderColor="#fcd34d"
-                    textColor="#b45309"
-                    unitColor="#d97706"
-                  />
+            <div
+              style={{
+                flex: 1,
+                background: "white",
+                borderRadius: "14px",
+                padding: "1.5rem",
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                minHeight: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {timeseries.length > 0 ? (
+                <div style={{ width: "100%", height: "100%" }}>
+                  <Line data={chartData} options={chartOptions} />
                 </div>
               ) : (
                 <div
                   style={{
-                    padding: "1.5rem 1rem",
                     color: "#94a3b8",
-                    fontSize: "0.95rem",
-                    textAlign: "center",
-                    fontFamily: "'Times New Roman', Times, serif",
+                    fontSize: "1rem",
+                    fontWeight: "500",
                   }}
                 >
-                  Loading statistics...
+                  Loading chart data...
                 </div>
               )}
-            </div>
-
-            {/* Right Side - Chart */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-              <h4
-                style={{
-                  margin: "0",
-                  fontSize: "1.25rem",
-                  fontWeight: "normal",
-                  color: "#1e293b",
-                  fontFamily: "'Times New Roman', Times, serif",
-                }}
-              >
-                📉 Time Series Trend
-              </h4>
-
-              <div
-                style={{
-                  flex: 1,
-                  minHeight: "400px",
-                  background: "#f8fafc",
-                  borderRadius: "4px",
-                  padding: "1.5rem",
-                  border: "1px solid #e2e8f0",
-                }}
-              >
-                {timeseries.length > 0 ? (
-                  <Line data={chartData} options={chartOptions} />
-                ) : (
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#94a3b8",
-                      fontSize: "1rem",
-                      fontFamily: "'Times New Roman', Times, serif",
-                    }}
-                  >
-                    Loading chart...
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }
