@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -75,6 +75,43 @@ function StatCard({
   );
 }
 
+// Filter Button Component
+function FilterButton({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "0.625rem 1.25rem",
+        background: active
+          ? "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)"
+          : "white",
+        color: active ? "white" : "#64748b",
+        border: active ? "2px solid #2563eb" : "2px solid #e2e8f0",
+        borderRadius: "10px",
+        cursor: "pointer",
+        fontSize: "0.875rem",
+        fontWeight: "600",
+        transition: "all 0.2s ease",
+        boxShadow: active ? "0 4px 12px rgba(59, 130, 246, 0.3)" : "none",
+      }}
+      onMouseOver={(e) => {
+        if (!active) {
+          e.target.style.background = "#f8fafc";
+          e.target.style.borderColor = "#cbd5e1";
+        }
+      }}
+      onMouseOut={(e) => {
+        if (!active) {
+          e.target.style.background = "white";
+          e.target.style.borderColor = "#e2e8f0";
+        }
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function ChartModal({
   showModal,
   isFullscreen,
@@ -84,44 +121,191 @@ export function ChartModal({
   toggleFullscreen,
   closeModal,
 }) {
+  // State for which indices to show
+  const [activeIndices, setActiveIndices] = useState({
+    NDVI: true,
+    NDWI: true,
+    NSMI: true,
+  });
+
+  // State for which derivative types to show
+  const [activeDerivatives, setActiveDerivatives] = useState({
+    raw: true,
+    d1: false,
+    d2: false,
+  });
+
+  // Toggle index visibility
+  const toggleIndex = (index) => {
+    setActiveIndices(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
+
+  // Toggle derivative visibility
+  const toggleDerivative = (type) => {
+    setActiveDerivatives(prev => ({
+      ...prev,
+      [type]: !prev[type]
+    }));
+  };
+
+  // Build datasets based on active indices and derivatives
+  const buildDatasets = () => {
+    const datasets = [];
+
+    // NDVI datasets
+    if (activeIndices.NDVI) {
+      if (activeDerivatives.raw) {
+        datasets.push({
+          label: "NDVI",
+          data: timeseries.map((d) => d.NDVI),
+          borderColor: "#10b981",
+          backgroundColor: "rgba(16, 185, 129, 0.1)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          spanGaps: true,
+        });
+      }
+      if (activeDerivatives.d1) {
+        datasets.push({
+          label: "NDVI (d1)",
+          data: timeseries.map((d) => d.NDVI_d1),
+          borderColor: "#059669",
+          backgroundColor: "rgba(5, 150, 105, 0.1)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          spanGaps: true,
+          borderDash: [5, 5],
+        });
+      }
+      if (activeDerivatives.d2) {
+        datasets.push({
+          label: "NDVI (d2)",
+          data: timeseries.map((d) => d.NDVI_d2),
+          borderColor: "#047857",
+          backgroundColor: "rgba(4, 120, 87, 0.1)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          spanGaps: true,
+          borderDash: [2, 2],
+        });
+      }
+    }
+
+    // NDWI datasets
+    if (activeIndices.NDWI) {
+      if (activeDerivatives.raw) {
+        datasets.push({
+          label: "NDWI",
+          data: timeseries.map((d) => d.NDWI),
+          borderColor: "#3b82f6",
+          backgroundColor: "rgba(59, 130, 246, 0.1)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          spanGaps: true,
+        });
+      }
+      if (activeDerivatives.d1) {
+        datasets.push({
+          label: "NDWI (d1)",
+          data: timeseries.map((d) => d.NDWI_d1),
+          borderColor: "#1d4ed8",
+          backgroundColor: "rgba(29, 78, 216, 0.1)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          spanGaps: true,
+          borderDash: [5, 5],
+        });
+      }
+      if (activeDerivatives.d2) {
+        datasets.push({
+          label: "NDWI (d2)",
+          data: timeseries.map((d) => d.NDWI_d2),
+          borderColor: "#1e40af",
+          backgroundColor: "rgba(30, 64, 175, 0.1)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          spanGaps: true,
+          borderDash: [2, 2],
+        });
+      }
+    }
+
+    // NSMI datasets
+    if (activeIndices.NSMI) {
+      if (activeDerivatives.raw) {
+        datasets.push({
+          label: "NSMI",
+          data: timeseries.map((d) => d.NSMI),
+          borderColor: "#f59e0b",
+          backgroundColor: "rgba(245, 158, 11, 0.1)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          spanGaps: true,
+        });
+      }
+      if (activeDerivatives.d1) {
+        datasets.push({
+          label: "NSMI (d1)",
+          data: timeseries.map((d) => d.NSMI_d1),
+          borderColor: "#d97706",
+          backgroundColor: "rgba(217, 119, 6, 0.1)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          spanGaps: true,
+          borderDash: [5, 5],
+        });
+      }
+      if (activeDerivatives.d2) {
+        datasets.push({
+          label: "NSMI (d2)",
+          data: timeseries.map((d) => d.NSMI_d2),
+          borderColor: "#b45309",
+          backgroundColor: "rgba(180, 83, 9, 0.1)",
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          spanGaps: true,
+          borderDash: [2, 2],
+        });
+      }
+    }
+
+    return datasets;
+  };
+
   // Chart configuration
   const chartData = {
     labels: timeseries.map((d) => d.date),
-    datasets: [
-      {
-        label: "NDVI",
-        data: timeseries.map((d) => d.NDVI),
-        borderColor: "#10b981",
-        backgroundColor: "rgba(16, 185, 129, 0.1)",
-        borderWidth: 2.5,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-      },
-      {
-        label: "NDWI",
-        data: timeseries.map((d) => d.NDWI),
-        borderColor: "#3b82f6",
-        backgroundColor: "rgba(59, 130, 246, 0.1)",
-        borderWidth: 2.5,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-      },
-      {
-        label: "NSMI",
-        data: timeseries.map((d) => d.NSMI),
-        borderColor: "#f59e0b",
-        backgroundColor: "rgba(245, 158, 11, 0.1)",
-        borderWidth: 2.5,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-      },
-    ],
+    datasets: buildDatasets(),
   };
 
   const chartOptions = {
@@ -415,17 +599,57 @@ export function ChartModal({
               minHeight: 0,
             }}
           >
-            <h4
+            {/* Top Level - Index Selection */}
+            <div
               style={{
-                margin: "0",
-                fontSize: "1.25rem",
-                fontWeight: "700",
-                color: "#0f172a",
-                letterSpacing: "-0.025em",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
-              Time Series Analysis
-            </h4>
+              <h4
+                style={{
+                  margin: "0",
+                  fontSize: "1.25rem",
+                  fontWeight: "700",
+                  color: "#0f172a",
+                  letterSpacing: "-0.025em",
+                }}
+              >
+                Time Series Analysis
+              </h4>
+
+              {/* Index Filter Buttons */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.625rem",
+                  background: "#f8fafc",
+                  padding: "0.5rem",
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <FilterButton
+                  active={activeIndices.NDVI}
+                  onClick={() => toggleIndex("NDVI")}
+                >
+                  🌿 NDVI
+                </FilterButton>
+                <FilterButton
+                  active={activeIndices.NDWI}
+                  onClick={() => toggleIndex("NDWI")}
+                >
+                  💧 NDWI
+                </FilterButton>
+                <FilterButton
+                  active={activeIndices.NSMI}
+                  onClick={() => toggleIndex("NSMI")}
+                >
+                  🏜️ NSMI
+                </FilterButton>
+              </div>
+            </div>
 
             <div
               style={{
@@ -437,25 +661,78 @@ export function ChartModal({
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
                 minHeight: 0,
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                flexDirection: "column",
+                gap: "1rem",
               }}
             >
-              {timeseries.length > 0 ? (
-                <div style={{ width: "100%", height: "100%" }}>
-                  <Line data={chartData} options={chartOptions} />
+              {/* Internal Derivative Filter Toggles */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  justifyContent: "center",
+                  padding: "0.75rem",
+                  background: "#f8fafc",
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ 
+                  fontSize: "0.75rem", 
+                  fontWeight: "700", 
+                  color: "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  paddingRight: "0.5rem",
+                  borderRight: "2px solid #e2e8f0"
+                }}>
+                  DERIVATIVES:
                 </div>
-              ) : (
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "1rem",
-                    fontWeight: "500",
-                  }}
+                <FilterButton
+                  active={activeDerivatives.raw}
+                  onClick={() => toggleDerivative("raw")}
                 >
-                  Loading chart data...
-                </div>
-              )}
+                  📊 Raw
+                </FilterButton>
+                <FilterButton
+                  active={activeDerivatives.d1}
+                  onClick={() => toggleDerivative("d1")}
+                >
+                  📈 1st (d1)
+                </FilterButton>
+                <FilterButton
+                  active={activeDerivatives.d2}
+                  onClick={() => toggleDerivative("d2")}
+                >
+                  📉 2nd (d2)
+                </FilterButton>
+              </div>
+
+              {/* Chart */}
+              <div style={{ 
+                flex: 1, 
+                minHeight: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}>
+                {timeseries.length > 0 ? (
+                  <div style={{ width: "100%", height: "100%" }}>
+                    <Line data={chartData} options={chartOptions} />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: "1rem",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Loading chart data...
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
