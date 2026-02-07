@@ -299,9 +299,9 @@ export function ChartModal({
     if (!isOverlayMode) {
       // NORMAL MODE - Single timeline (all data)
       const baseColors = {
-        NDVI: { primary: "#22c55e", secondary: "#16a34a", tertiary: "#15803d" }, // Green
-        NDWI: { primary: "#3b82f6", secondary: "#2563eb", tertiary: "#1d4ed8" }, // Blue
-        NSMI: { primary: "#f97316", secondary: "#ea580c", tertiary: "#c2410c" }, // Orange
+        NDVI: { primary: "#22c55e", secondary: "#16a34a", tertiary: "#15803d" },
+        NDWI: { primary: "#3b82f6", secondary: "#2563eb", tertiary: "#1d4ed8" },
+        NSMI: { primary: "#f97316", secondary: "#ea580c", tertiary: "#c2410c" },
       };
 
       Object.keys(activeIndices).forEach((index) => {
@@ -362,17 +362,17 @@ export function ChartModal({
     } else if (isDateRangeMode) {
       // DATE RANGE OVERLAY MODE
       const indexColors = {
-        NDVI: { primary: "#22c55e", light: "rgba(34, 197, 94, 0.1)" }, // Green
-        NDWI: { primary: "#3b82f6", light: "rgba(59, 130, 246, 0.1)" }, // Blue
-        NSMI: { primary: "#f97316", light: "rgba(249, 115, 22, 0.1)" }, // Orange
+        NDVI: { primary: "#22c55e", light: "rgba(34, 197, 94, 0.1)" },
+        NDWI: { primary: "#3b82f6", light: "rgba(59, 130, 246, 0.1)" },
+        NSMI: { primary: "#f97316", light: "rgba(249, 115, 22, 0.1)" },
       };
 
       const range1Data = filterByDateRange(timeseries, dateRange1Start, dateRange1End);
       const range2Data = filterByDateRange(timeseries, dateRange2Start, dateRange2End);
 
-      // Get the maximum length to align data
+      // Create normalized indices (0, 1, 2, 3...) for x-axis alignment
       const maxLength = Math.max(range1Data.length, range2Data.length);
-
+      
       Object.keys(activeIndices).forEach((index) => {
         if (!activeIndices[index]) return;
 
@@ -381,9 +381,14 @@ export function ChartModal({
         // Add raw data if selected
         if (selectedDerivatives.raw) {
           // Range 1 - solid line
+          const range1Values = Array(maxLength).fill(null);
+          range1Data.forEach((d, i) => {
+            range1Values[i] = d[index];
+          });
+          
           datasets.push({
             label: `${index} (${dateRange1Start} to ${dateRange1End})`,
-            data: range1Data.map((d) => d[index]),
+            data: range1Values,
             borderColor: colorScheme.primary,
             backgroundColor: colorScheme.light,
             borderWidth: 2.5,
@@ -395,9 +400,14 @@ export function ChartModal({
           });
 
           // Range 2 - dashed line
+          const range2Values = Array(maxLength).fill(null);
+          range2Data.forEach((d, i) => {
+            range2Values[i] = d[index];
+          });
+          
           datasets.push({
             label: `${index} (${dateRange2Start} to ${dateRange2End})`,
-            data: range2Data.map((d) => d[index]),
+            data: range2Values,
             borderColor: colorScheme.primary,
             backgroundColor: colorScheme.light,
             borderWidth: 2.5,
@@ -412,9 +422,14 @@ export function ChartModal({
 
         // Add 1st derivative if selected
         if (selectedDerivatives.d1) {
+          const range1D1Values = Array(maxLength).fill(null);
+          range1Data.forEach((d, i) => {
+            range1D1Values[i] = d[`${index}_d1`];
+          });
+          
           datasets.push({
             label: `${index} (d1) (${dateRange1Start} to ${dateRange1End})`,
-            data: range1Data.map((d) => d[`${index}_d1`]),
+            data: range1D1Values,
             borderColor: colorScheme.primary,
             backgroundColor: colorScheme.light,
             borderWidth: 2.5,
@@ -426,9 +441,14 @@ export function ChartModal({
             borderDash: [5, 5],
           });
 
+          const range2D1Values = Array(maxLength).fill(null);
+          range2Data.forEach((d, i) => {
+            range2D1Values[i] = d[`${index}_d1`];
+          });
+          
           datasets.push({
             label: `${index} (d1) (${dateRange2Start} to ${dateRange2End})`,
-            data: range2Data.map((d) => d[`${index}_d1`]),
+            data: range2D1Values,
             borderColor: colorScheme.primary,
             backgroundColor: colorScheme.light,
             borderWidth: 2.5,
@@ -443,9 +463,14 @@ export function ChartModal({
 
         // Add 2nd derivative if selected
         if (selectedDerivatives.d2) {
+          const range1D2Values = Array(maxLength).fill(null);
+          range1Data.forEach((d, i) => {
+            range1D2Values[i] = d[`${index}_d2`];
+          });
+          
           datasets.push({
             label: `${index} (d2) (${dateRange1Start} to ${dateRange1End})`,
-            data: range1Data.map((d) => d[`${index}_d2`]),
+            data: range1D2Values,
             borderColor: colorScheme.primary,
             backgroundColor: colorScheme.light,
             borderWidth: 2.5,
@@ -457,9 +482,14 @@ export function ChartModal({
             borderDash: [2, 2],
           });
 
+          const range2D2Values = Array(maxLength).fill(null);
+          range2Data.forEach((d, i) => {
+            range2D2Values[i] = d[`${index}_d2`];
+          });
+          
           datasets.push({
             label: `${index} (d2) (${dateRange2Start} to ${dateRange2End})`,
-            data: range2Data.map((d) => d[`${index}_d2`]),
+            data: range2D2Values,
             borderColor: colorScheme.primary,
             backgroundColor: colorScheme.light,
             borderWidth: 2.5,
@@ -482,11 +512,13 @@ export function ChartModal({
     if (!isOverlayMode) {
       return timeseries.map((d) => d.date);
     } else {
-      // For date range overlay mode, use the range with more data points for labels
+      // For overlay mode, create normalized indices
       const range1Data = filterByDateRange(timeseries, dateRange1Start, dateRange1End);
       const range2Data = filterByDateRange(timeseries, dateRange2Start, dateRange2End);
-      const longerRange = range1Data.length >= range2Data.length ? range1Data : range2Data;
-      return longerRange.map((d) => d.date);
+      const maxLength = Math.max(range1Data.length, range2Data.length);
+      
+      // Use index numbers instead of dates for better comparison
+      return Array.from({ length: maxLength }, (_, i) => `Point ${i + 1}`);
     }
   };
 
