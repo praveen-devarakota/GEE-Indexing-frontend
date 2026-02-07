@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -112,6 +112,109 @@ function FilterButton({ active, onClick, children }) {
   );
 }
 
+// Dropdown Component
+function Dropdown({ label, options, value, onChange, placeholder = "Select" }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          padding: "0.625rem 1rem",
+          background: "white",
+          border: "2px solid #e2e8f0",
+          borderRadius: "10px",
+          cursor: "pointer",
+          fontSize: "0.875rem",
+          fontWeight: "600",
+          color: "#1e293b",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          minWidth: "140px",
+          justifyContent: "space-between",
+          transition: "all 0.2s ease",
+        }}
+        onMouseOver={(e) => {
+          e.currentTarget.style.borderColor = "#3b82f6";
+          e.currentTarget.style.background = "#f8fafc";
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.borderColor = "#e2e8f0";
+          e.currentTarget.style.background = "white";
+        }}
+      >
+        <span style={{ fontSize: "0.75rem", color: "#64748b" }}>{label}:</span>
+        <span>{value || placeholder}</span>
+        <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>▼</span>
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 999,
+            }}
+            onClick={() => setIsOpen(false)}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 0.5rem)",
+              right: 0,
+              background: "white",
+              border: "2px solid #e2e8f0",
+              borderRadius: "10px",
+              boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
+              zIndex: 1000,
+              maxHeight: "240px",
+              overflowY: "auto",
+              minWidth: "160px",
+            }}
+          >
+            {options.map((option) => (
+              <div
+                key={option.value}
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                style={{
+                  padding: "0.75rem 1rem",
+                  cursor: "pointer",
+                  fontSize: "0.875rem",
+                  fontWeight: "500",
+                  color: value === option.value ? "#3b82f6" : "#475569",
+                  background: value === option.value ? "#eff6ff" : "transparent",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseOver={(e) => {
+                  if (value !== option.value) {
+                    e.currentTarget.style.background = "#f8fafc";
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (value !== option.value) {
+                    e.currentTarget.style.background = "transparent";
+                  }
+                }}
+              >
+                {option.label}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ChartModal({
   showModal,
   isFullscreen,
@@ -128,201 +231,292 @@ export function ChartModal({
     NSMI: true,
   });
 
-  // State for which derivative types to show
-  const [activeDerivatives, setActiveDerivatives] = useState({
+  // State for derivative types (multi-select)
+  const [selectedDerivatives, setSelectedDerivatives] = useState({
     raw: true,
     d1: false,
     d2: false,
   });
 
+  // State for custom date range overlay
+  const [showDateRangeModal, setShowDateRangeModal] = useState(false);
+  const [dateRange1Start, setDateRange1Start] = useState("");
+  const [dateRange1End, setDateRange1End] = useState("");
+  const [dateRange2Start, setDateRange2Start] = useState("");
+  const [dateRange2End, setDateRange2End] = useState("");
+  const [isDateRangeMode, setIsDateRangeMode] = useState(false);
+
+  // Check if overlay mode is active (date ranges selected)
+  const isOverlayMode = isDateRangeMode;
+
   // Toggle index visibility
   const toggleIndex = (index) => {
-    setActiveIndices(prev => ({
+    setActiveIndices((prev) => ({
       ...prev,
-      [index]: !prev[index]
+      [index]: !prev[index],
     }));
   };
 
   // Toggle derivative visibility
-  const toggleDerivative = (type) => {
-    setActiveDerivatives(prev => ({
+  const toggleDerivative = (derivative) => {
+    setSelectedDerivatives((prev) => ({
       ...prev,
-      [type]: !prev[type]
+      [derivative]: !prev[derivative],
     }));
+  };
+
+  // Helper function to filter data by date range
+  const filterByDateRange = (data, startDate, endDate) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return data.filter((d) => {
+      const date = new Date(d.date);
+      return date >= start && date <= end;
+    });
+  };
+
+  // Apply date range overlay
+  const applyDateRangeOverlay = () => {
+    if (dateRange1Start && dateRange1End && dateRange2Start && dateRange2End) {
+      setIsDateRangeMode(true);
+      setShowDateRangeModal(false);
+    }
+  };
+
+  // Clear date range overlay
+  const clearDateRangeOverlay = () => {
+    setIsDateRangeMode(false);
+    setDateRange1Start("");
+    setDateRange1End("");
+    setDateRange2Start("");
+    setDateRange2End("");
   };
 
   // Build datasets based on active indices and derivatives
   const buildDatasets = () => {
     const datasets = [];
 
-    // NDVI datasets
-    if (activeIndices.NDVI) {
-      if (activeDerivatives.raw) {
-        datasets.push({
-          label: "NDVI",
-          data: timeseries.map((d) => d.NDVI),
-          borderColor: "#10b981",
-          backgroundColor: "rgba(16, 185, 129, 0.1)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true,
-        });
-      }
-      if (activeDerivatives.d1) {
-        datasets.push({
-          label: "NDVI (d1)",
-          data: timeseries.map((d) => d.NDVI_d1),
-          borderColor: "#059669",
-          backgroundColor: "rgba(5, 150, 105, 0.1)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true,
-          borderDash: [5, 5],
-        });
-      }
-      if (activeDerivatives.d2) {
-        datasets.push({
-          label: "NDVI (d2)",
-          data: timeseries.map((d) => d.NDVI_d2),
-          borderColor: "#047857",
-          backgroundColor: "rgba(4, 120, 87, 0.1)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true,
-          borderDash: [2, 2],
-        });
-      }
-    }
+    if (!isOverlayMode) {
+      // NORMAL MODE - Single timeline (all data)
+      const baseColors = {
+        NDVI: { primary: "#22c55e", secondary: "#16a34a", tertiary: "#15803d" }, // Green
+        NDWI: { primary: "#3b82f6", secondary: "#2563eb", tertiary: "#1d4ed8" }, // Blue
+        NSMI: { primary: "#f97316", secondary: "#ea580c", tertiary: "#c2410c" }, // Orange
+      };
 
-    // NDWI datasets
-    if (activeIndices.NDWI) {
-      if (activeDerivatives.raw) {
-        datasets.push({
-          label: "NDWI",
-          data: timeseries.map((d) => d.NDWI),
-          borderColor: "#3b82f6",
-          backgroundColor: "rgba(59, 130, 246, 0.1)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true,
-        });
-      }
-      if (activeDerivatives.d1) {
-        datasets.push({
-          label: "NDWI (d1)",
-          data: timeseries.map((d) => d.NDWI_d1),
-          borderColor: "#1d4ed8",
-          backgroundColor: "rgba(29, 78, 216, 0.1)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true,
-          borderDash: [5, 5],
-        });
-      }
-      if (activeDerivatives.d2) {
-        datasets.push({
-          label: "NDWI (d2)",
-          data: timeseries.map((d) => d.NDWI_d2),
-          borderColor: "#1e40af",
-          backgroundColor: "rgba(30, 64, 175, 0.1)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true,
-          borderDash: [2, 2],
-        });
-      }
-    }
+      Object.keys(activeIndices).forEach((index) => {
+        if (!activeIndices[index]) return;
 
-    // NSMI datasets
-    if (activeIndices.NSMI) {
-      if (activeDerivatives.raw) {
-        datasets.push({
-          label: "NSMI",
-          data: timeseries.map((d) => d.NSMI),
-          borderColor: "#f59e0b",
-          backgroundColor: "rgba(245, 158, 11, 0.1)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true,
-        });
-      }
-      if (activeDerivatives.d1) {
-        datasets.push({
-          label: "NSMI (d1)",
-          data: timeseries.map((d) => d.NSMI_d1),
-          borderColor: "#d97706",
-          backgroundColor: "rgba(217, 119, 6, 0.1)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true,
-          borderDash: [5, 5],
-        });
-      }
-      if (activeDerivatives.d2) {
-        datasets.push({
-          label: "NSMI (d2)",
-          data: timeseries.map((d) => d.NSMI_d2),
-          borderColor: "#b45309",
-          backgroundColor: "rgba(180, 83, 9, 0.1)",
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          spanGaps: true,
-          borderDash: [2, 2],
-        });
-      }
+        const colors = baseColors[index];
+
+        // Add raw data if selected
+        if (selectedDerivatives.raw) {
+          datasets.push({
+            label: index,
+            data: timeseries.map((d) => d[index]),
+            borderColor: colors.primary,
+            backgroundColor: `${colors.primary}1a`,
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2.5,
+            pointHoverRadius: 5,
+            spanGaps: true,
+          });
+        }
+
+        // Add 1st derivative if selected
+        if (selectedDerivatives.d1) {
+          datasets.push({
+            label: `${index} (d1)`,
+            data: timeseries.map((d) => d[`${index}_d1`]),
+            borderColor: colors.secondary,
+            backgroundColor: `${colors.secondary}1a`,
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2.5,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            borderDash: [5, 5],
+          });
+        }
+
+        // Add 2nd derivative if selected
+        if (selectedDerivatives.d2) {
+          datasets.push({
+            label: `${index} (d2)`,
+            data: timeseries.map((d) => d[`${index}_d2`]),
+            borderColor: colors.tertiary,
+            backgroundColor: `${colors.tertiary}1a`,
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 2.5,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            borderDash: [2, 2],
+          });
+        }
+      });
+    } else if (isDateRangeMode) {
+      // DATE RANGE OVERLAY MODE
+      const indexColors = {
+        NDVI: { primary: "#22c55e", light: "rgba(34, 197, 94, 0.1)" }, // Green
+        NDWI: { primary: "#3b82f6", light: "rgba(59, 130, 246, 0.1)" }, // Blue
+        NSMI: { primary: "#f97316", light: "rgba(249, 115, 22, 0.1)" }, // Orange
+      };
+
+      const range1Data = filterByDateRange(timeseries, dateRange1Start, dateRange1End);
+      const range2Data = filterByDateRange(timeseries, dateRange2Start, dateRange2End);
+
+      // Get the maximum length to align data
+      const maxLength = Math.max(range1Data.length, range2Data.length);
+
+      Object.keys(activeIndices).forEach((index) => {
+        if (!activeIndices[index]) return;
+
+        const colorScheme = indexColors[index];
+
+        // Add raw data if selected
+        if (selectedDerivatives.raw) {
+          // Range 1 - solid line
+          datasets.push({
+            label: `${index} (${dateRange1Start} to ${dateRange1End})`,
+            data: range1Data.map((d) => d[index]),
+            borderColor: colorScheme.primary,
+            backgroundColor: colorScheme.light,
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.4,
+            pointRadius: 2.5,
+            pointHoverRadius: 5,
+            spanGaps: true,
+          });
+
+          // Range 2 - dashed line
+          datasets.push({
+            label: `${index} (${dateRange2Start} to ${dateRange2End})`,
+            data: range2Data.map((d) => d[index]),
+            borderColor: colorScheme.primary,
+            backgroundColor: colorScheme.light,
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.4,
+            pointRadius: 2.5,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            borderDash: [8, 4],
+          });
+        }
+
+        // Add 1st derivative if selected
+        if (selectedDerivatives.d1) {
+          datasets.push({
+            label: `${index} (d1) (${dateRange1Start} to ${dateRange1End})`,
+            data: range1Data.map((d) => d[`${index}_d1`]),
+            borderColor: colorScheme.primary,
+            backgroundColor: colorScheme.light,
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.4,
+            pointRadius: 2.5,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            borderDash: [5, 5],
+          });
+
+          datasets.push({
+            label: `${index} (d1) (${dateRange2Start} to ${dateRange2End})`,
+            data: range2Data.map((d) => d[`${index}_d1`]),
+            borderColor: colorScheme.primary,
+            backgroundColor: colorScheme.light,
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.4,
+            pointRadius: 2.5,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            borderDash: [10, 5],
+          });
+        }
+
+        // Add 2nd derivative if selected
+        if (selectedDerivatives.d2) {
+          datasets.push({
+            label: `${index} (d2) (${dateRange1Start} to ${dateRange1End})`,
+            data: range1Data.map((d) => d[`${index}_d2`]),
+            borderColor: colorScheme.primary,
+            backgroundColor: colorScheme.light,
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.4,
+            pointRadius: 2.5,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            borderDash: [2, 2],
+          });
+
+          datasets.push({
+            label: `${index} (d2) (${dateRange2Start} to ${dateRange2End})`,
+            data: range2Data.map((d) => d[`${index}_d2`]),
+            borderColor: colorScheme.primary,
+            backgroundColor: colorScheme.light,
+            borderWidth: 2.5,
+            fill: false,
+            tension: 0.4,
+            pointRadius: 2.5,
+            pointHoverRadius: 5,
+            spanGaps: true,
+            borderDash: [6, 3],
+          });
+        }
+      });
     }
 
     return datasets;
   };
 
+  // Get labels based on mode
+  const getChartLabels = () => {
+    if (!isOverlayMode) {
+      return timeseries.map((d) => d.date);
+    } else {
+      // For date range overlay mode, use the range with more data points for labels
+      const range1Data = filterByDateRange(timeseries, dateRange1Start, dateRange1End);
+      const range2Data = filterByDateRange(timeseries, dateRange2Start, dateRange2End);
+      const longerRange = range1Data.length >= range2Data.length ? range1Data : range2Data;
+      return longerRange.map((d) => d.date);
+    }
+  };
+
   // Chart configuration
   const chartData = {
-    labels: timeseries.map((d) => d.date),
+    labels: getChartLabels(),
     datasets: buildDatasets(),
   };
 
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+      mode: "index",
+      intersect: false,
+    },
     plugins: {
       legend: {
         position: "top",
         labels: {
           usePointStyle: true,
-          padding: 15,
+          padding: 12,
           font: {
-            size: 12,
+            size: 11,
             family:
               "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             weight: "500",
           },
+          boxWidth: 8,
+          boxHeight: 8,
         },
       },
       tooltip: {
@@ -343,6 +537,8 @@ export function ChartModal({
     },
     scales: {
       y: {
+        beginAtZero: false,
+        grace: "10%",
         grid: {
           color: "rgba(148, 163, 184, 0.1)",
           drawBorder: false,
@@ -354,6 +550,7 @@ export function ChartModal({
               "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           },
           color: "#64748b",
+          maxTicksLimit: 8,
         },
       },
       x: {
@@ -363,13 +560,15 @@ export function ChartModal({
         },
         ticks: {
           font: {
-            size: 11,
+            size: 10,
             family:
               "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           },
           color: "#64748b",
           maxRotation: 45,
           minRotation: 45,
+          autoSkip: true,
+          maxTicksLimit: 15,
         },
       },
     },
@@ -442,12 +641,55 @@ export function ChartModal({
                   fontWeight: "500",
                 }}
               >
-                📍 Location: {selectedPoint.lat.toFixed(4)},
+                📍 Location: {selectedPoint.lat.toFixed(4)},{" "}
                 {selectedPoint.lng.toFixed(4)}
+                {isDateRangeMode && (
+                  <span style={{ marginLeft: "1rem", color: "#3b82f6" }}>
+                    📅 Date Range Overlay Active
+                  </span>
+                )}
               </div>
             )}
           </div>
           <div style={{ display: "flex", gap: "0.75rem" }}>
+            <button
+              onClick={() => setShowDateRangeModal(true)}
+              style={{
+                background: isDateRangeMode
+                  ? "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)"
+                  : "white",
+                border: isDateRangeMode
+                  ? "2px solid #2563eb"
+                  : "2px solid #e2e8f0",
+                borderRadius: "10px",
+                padding: "0.625rem 1.25rem",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+                color: isDateRangeMode ? "white" : "#475569",
+                transition: "all 0.2s ease",
+                fontWeight: "600",
+                boxShadow: isDateRangeMode
+                  ? "0 4px 12px rgba(59, 130, 246, 0.3)"
+                  : "none",
+              }}
+              onMouseOver={(e) => {
+                if (!isDateRangeMode) {
+                  e.target.style.background = "#f8fafc";
+                  e.target.style.borderColor = "#3b82f6";
+                  e.target.style.color = "#3b82f6";
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!isDateRangeMode) {
+                  e.target.style.background = "white";
+                  e.target.style.borderColor = "#e2e8f0";
+                  e.target.style.color = "#475569";
+                }
+              }}
+              title="Date Range Overlay"
+            >
+              📅 Date Range Overlay
+            </button>
             <button
               onClick={toggleFullscreen}
               style={{
@@ -553,8 +795,8 @@ export function ChartModal({
                   unit="Vegetation Index"
                   bgGradient="linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
                   borderColor="#a7f3d0"
-                  textColor="#059669"
-                  unitColor="#047857"
+                  textColor="#16a34a"
+                  unitColor="#15803d"
                 />
                 <StatCard
                   label="NDWI"
@@ -569,10 +811,10 @@ export function ChartModal({
                   label="NSMI"
                   value={stats.avg_nsmi}
                   unit="Soil Moisture Index"
-                  bgGradient="linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
-                  borderColor="#fcd34d"
-                  textColor="#d97706"
-                  unitColor="#b45309"
+                  bgGradient="linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)"
+                  borderColor="#fdba74"
+                  textColor="#ea580c"
+                  unitColor="#c2410c"
                 />
               </div>
             ) : (
@@ -599,7 +841,7 @@ export function ChartModal({
               minHeight: 0,
             }}
           >
-            {/* Top Level - Index Selection */}
+            {/* Top Controls Row */}
             <div
               style={{
                 display: "flex",
@@ -607,19 +849,7 @@ export function ChartModal({
                 alignItems: "center",
               }}
             >
-              <h4
-                style={{
-                  margin: "0",
-                  fontSize: "1.25rem",
-                  fontWeight: "700",
-                  color: "#0f172a",
-                  letterSpacing: "-0.025em",
-                }}
-              >
-                Time Series Analysis
-              </h4>
-
-              {/* Index Filter Buttons */}
+              {/* Left: Index Selection */}
               <div
                 style={{
                   display: "flex",
@@ -649,8 +879,40 @@ export function ChartModal({
                   🏜️ NSMI
                 </FilterButton>
               </div>
+
+              {/* Right: Derivative Selection */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.625rem",
+                  background: "#f8fafc",
+                  padding: "0.5rem",
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <FilterButton
+                  active={selectedDerivatives.raw}
+                  onClick={() => toggleDerivative("raw")}
+                >
+                  📊 Raw
+                </FilterButton>
+                <FilterButton
+                  active={selectedDerivatives.d1}
+                  onClick={() => toggleDerivative("d1")}
+                >
+                  📈 d1
+                </FilterButton>
+                <FilterButton
+                  active={selectedDerivatives.d2}
+                  onClick={() => toggleDerivative("d2")}
+                >
+                  📉 d2
+                </FilterButton>
+              </div>
             </div>
 
+            {/* Chart Container */}
             <div
               style={{
                 flex: 1,
@@ -661,82 +923,315 @@ export function ChartModal({
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
                 minHeight: 0,
                 display: "flex",
-                flexDirection: "column",
-                gap: "1rem",
-              }}
-            >
-              {/* Internal Derivative Filter Toggles */}
-              <div
-                style={{
-                  display: "flex",
-                  gap: "0.75rem",
-                  justifyContent: "center",
-                  padding: "0.75rem",
-                  background: "#f8fafc",
-                  borderRadius: "12px",
-                  border: "1px solid #e2e8f0",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div style={{ 
-                  fontSize: "0.75rem", 
-                  fontWeight: "700", 
-                  color: "#64748b",
-                  display: "flex",
-                  alignItems: "center",
-                  paddingRight: "0.5rem",
-                  borderRight: "2px solid #e2e8f0"
-                }}>
-                  DERIVATIVES:
-                </div>
-                <FilterButton
-                  active={activeDerivatives.raw}
-                  onClick={() => toggleDerivative("raw")}
-                >
-                  📊 Raw
-                </FilterButton>
-                <FilterButton
-                  active={activeDerivatives.d1}
-                  onClick={() => toggleDerivative("d1")}
-                >
-                  📈 1st (d1)
-                </FilterButton>
-                <FilterButton
-                  active={activeDerivatives.d2}
-                  onClick={() => toggleDerivative("d2")}
-                >
-                  📉 2nd (d2)
-                </FilterButton>
-              </div>
-
-              {/* Chart */}
-              <div style={{ 
-                flex: 1, 
-                minHeight: 0,
-                display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-              }}>
-                {timeseries.length > 0 ? (
-                  <div style={{ width: "100%", height: "100%" }}>
-                    <Line data={chartData} options={chartOptions} />
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: "1rem",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Loading chart data...
-                  </div>
-                )}
-              </div>
+              }}
+            >
+              {timeseries.length > 0 ? (
+                <div style={{ width: "100%", height: "100%" }}>
+                  <Line data={chartData} options={chartOptions} />
+                </div>
+              ) : (
+                <div
+                  style={{
+                    color: "#94a3b8",
+                    fontSize: "1rem",
+                    fontWeight: "500",
+                  }}
+                >
+                  Loading chart data...
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Date Range Overlay Modal */}
+      {showDateRangeModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1002,
+          }}
+          onClick={() => setShowDateRangeModal(false)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: "16px",
+              padding: "2rem",
+              maxWidth: "500px",
+              width: "90%",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                margin: "0 0 1.5rem 0",
+                fontSize: "1.25rem",
+                fontWeight: "700",
+                color: "#0f172a",
+              }}
+            >
+              📅 Date Range Overlay
+            </h3>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              {/* Range 1 */}
+              <div>
+                <h4
+                  style={{
+                    margin: "0 0 0.75rem 0",
+                    fontSize: "0.875rem",
+                    fontWeight: "600",
+                    color: "#3b82f6",
+                  }}
+                >
+                  Range 1 (Solid Line)
+                </h4>
+                <div style={{ display: "flex", gap: "0.75rem" }}>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.75rem",
+                        color: "#64748b",
+                        marginBottom: "0.375rem",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dateRange1Start}
+                      onChange={(e) => setDateRange1Start(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "0.625rem",
+                        border: "2px solid #e2e8f0",
+                        borderRadius: "8px",
+                        fontSize: "0.875rem",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.75rem",
+                        color: "#64748b",
+                        marginBottom: "0.375rem",
+                        fontWeight: "600",
+                      }}
+                    >
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dateRange1End}
+                      onChange={(e) => setDateRange1End(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "0.625rem",
+                        border: "2px solid #e2e8f0",
+                        borderRadius: "8px",
+                        fontSize: "0.875rem",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Range 2 */}
+              <div>
+                <h4
+                  style={{
+                    margin: "0 0 0.75rem 0",
+                    fontSize: "0.875rem",
+                    fontWeight: "600",
+                    color: "#ef4444",
+                  }}
+                >
+                  Range 2 (Dashed Line)
+                </h4>
+                <div style={{ display: "flex", gap: "0.75rem" }}>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.75rem",
+                        color: "#64748b",
+                        marginBottom: "0.375rem",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Start Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dateRange2Start}
+                      onChange={(e) => setDateRange2Start(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "0.625rem",
+                        border: "2px solid #e2e8f0",
+                        borderRadius: "8px",
+                        fontSize: "0.875rem",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.75rem",
+                        color: "#64748b",
+                        marginBottom: "0.375rem",
+                        fontWeight: "600",
+                      }}
+                    >
+                      End Date
+                    </label>
+                    <input
+                      type="date"
+                      value={dateRange2End}
+                      onChange={(e) => setDateRange2End(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "0.625rem",
+                        border: "2px solid #e2e8f0",
+                        borderRadius: "8px",
+                        fontSize: "0.875rem",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Example */}
+              <div
+                style={{
+                  padding: "0.875rem",
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                  fontSize: "0.75rem",
+                  color: "#64748b",
+                }}
+              >
+                <strong style={{ color: "#475569" }}>Example:</strong> Compare
+                Jun 2015 - Jun 2016 with Jun 2024 - Jun 2025
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
+                {isDateRangeMode && (
+                  <button
+                    onClick={clearDateRangeOverlay}
+                    style={{
+                      flex: 1,
+                      padding: "0.75rem",
+                      background: "white",
+                      border: "2px solid #e2e8f0",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      fontSize: "0.875rem",
+                      fontWeight: "600",
+                      color: "#ef4444",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = "#fef2f2";
+                      e.target.style.borderColor = "#ef4444";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = "white";
+                      e.target.style.borderColor = "#e2e8f0";
+                    }}
+                  >
+                    Clear Overlay
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowDateRangeModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: "0.75rem",
+                    background: "white",
+                    border: "2px solid #e2e8f0",
+                    borderRadius: "10px",
+                    cursor: "pointer",
+                    fontSize: "0.875rem",
+                    fontWeight: "600",
+                    color: "#64748b",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.background = "#f8fafc";
+                    e.target.style.borderColor = "#cbd5e1";
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.background = "white";
+                    e.target.style.borderColor = "#e2e8f0";
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={applyDateRangeOverlay}
+                  disabled={
+                    !dateRange1Start ||
+                    !dateRange1End ||
+                    !dateRange2Start ||
+                    !dateRange2End
+                  }
+                  style={{
+                    flex: 1,
+                    padding: "0.75rem",
+                    background:
+                      dateRange1Start && dateRange1End && dateRange2Start && dateRange2End
+                        ? "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)"
+                        : "#e2e8f0",
+                    border: "none",
+                    borderRadius: "10px",
+                    cursor:
+                      dateRange1Start && dateRange1End && dateRange2Start && dateRange2End
+                        ? "pointer"
+                        : "not-allowed",
+                    fontSize: "0.875rem",
+                    fontWeight: "600",
+                    color:
+                      dateRange1Start && dateRange1End && dateRange2Start && dateRange2End
+                        ? "white"
+                        : "#94a3b8",
+                    transition: "all 0.2s ease",
+                    boxShadow:
+                      dateRange1Start && dateRange1End && dateRange2Start && dateRange2End
+                        ? "0 4px 12px rgba(59, 130, 246, 0.3)"
+                        : "none",
+                  }}
+                >
+                  Apply Overlay
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
