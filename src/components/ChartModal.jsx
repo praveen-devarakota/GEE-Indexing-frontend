@@ -293,234 +293,135 @@ export function ChartModal({
   };
 
   // Build datasets based on active indices and derivatives
-  const buildDatasets = () => {
-    const datasets = [];
+ const buildDatasets = () => {
+  const datasets = [];
 
-    if (!isOverlayMode) {
-      // NORMAL MODE - Single timeline (all data)
-      const baseColors = {
-        NDVI: { primary: "#22c55e", secondary: "#16a34a", tertiary: "#15803d" },
-        NDWI: { primary: "#3b82f6", secondary: "#2563eb", tertiary: "#1d4ed8" },
-        NSMI: { primary: "#f97316", secondary: "#ea580c", tertiary: "#c2410c" },
-      };
-
-      Object.keys(activeIndices).forEach((index) => {
-        if (!activeIndices[index]) return;
-
-        const colors = baseColors[index];
-
-        // Add raw data if selected
-        if (selectedDerivatives.raw) {
-          datasets.push({
-            label: index,
-            data: timeseries.map((d) => d[index]),
-            borderColor: colors.primary,
-            backgroundColor: `${colors.primary}1a`,
-            borderWidth: 2.5,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            spanGaps: true,
-          });
-        }
-
-        // Add 1st derivative if selected
-        if (selectedDerivatives.d1) {
-          datasets.push({
-            label: `${index} (d1)`,
-            data: timeseries.map((d) => d[`${index}_d1`]),
-            borderColor: colors.secondary,
-            backgroundColor: `${colors.secondary}1a`,
-            borderWidth: 2.5,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            spanGaps: true,
-            borderDash: [5, 5],
-          });
-        }
-
-        // Add 2nd derivative if selected
-        if (selectedDerivatives.d2) {
-          datasets.push({
-            label: `${index} (d2)`,
-            data: timeseries.map((d) => d[`${index}_d2`]),
-            borderColor: colors.tertiary,
-            backgroundColor: `${colors.tertiary}1a`,
-            borderWidth: 2.5,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            spanGaps: true,
-            borderDash: [2, 2],
-          });
-        }
-      });
-    } else if (isDateRangeMode) {
-      // DATE RANGE OVERLAY MODE
-      const indexColors = {
-        NDVI: { primary: "#22c55e", light: "rgba(34, 197, 94, 0.1)" },
-        NDWI: { primary: "#3b82f6", light: "rgba(59, 130, 246, 0.1)" },
-        NSMI: { primary: "#f97316", light: "rgba(249, 115, 22, 0.1)" },
-      };
-
-      const range1Data = filterByDateRange(timeseries, dateRange1Start, dateRange1End);
-      const range2Data = filterByDateRange(timeseries, dateRange2Start, dateRange2End);
-
-      // Create normalized indices (0, 1, 2, 3...) for x-axis alignment
-      const maxLength = Math.max(range1Data.length, range2Data.length);
-      
-      Object.keys(activeIndices).forEach((index) => {
-        if (!activeIndices[index]) return;
-
-        const colorScheme = indexColors[index];
-
-        // Add raw data if selected
-        if (selectedDerivatives.raw) {
-          // Range 1 - solid line
-          const range1Values = Array(maxLength).fill(null);
-          range1Data.forEach((d, i) => {
-            range1Values[i] = d[index];
-          });
-          
-          datasets.push({
-            label: `${index} (${dateRange1Start} to ${dateRange1End})`,
-            data: range1Values,
-            borderColor: colorScheme.primary,
-            backgroundColor: colorScheme.light,
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.4,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            spanGaps: true,
-          });
-
-          // Range 2 - dashed line
-          const range2Values = Array(maxLength).fill(null);
-          range2Data.forEach((d, i) => {
-            range2Values[i] = d[index];
-          });
-          
-          datasets.push({
-            label: `${index} (${dateRange2Start} to ${dateRange2End})`,
-            data: range2Values,
-            borderColor: colorScheme.primary,
-            backgroundColor: colorScheme.light,
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.4,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            spanGaps: true,
-            borderDash: [8, 4],
-          });
-        }
-
-        // Add 1st derivative if selected
-        if (selectedDerivatives.d1) {
-          const range1D1Values = Array(maxLength).fill(null);
-          range1Data.forEach((d, i) => {
-            range1D1Values[i] = d[`${index}_d1`];
-          });
-          
-          datasets.push({
-            label: `${index} (d1) (${dateRange1Start} to ${dateRange1End})`,
-            data: range1D1Values,
-            borderColor: colorScheme.primary,
-            backgroundColor: colorScheme.light,
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.4,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            spanGaps: true,
-            borderDash: [5, 5],
-          });
-
-          const range2D1Values = Array(maxLength).fill(null);
-          range2Data.forEach((d, i) => {
-            range2D1Values[i] = d[`${index}_d1`];
-          });
-          
-          datasets.push({
-            label: `${index} (d1) (${dateRange2Start} to ${dateRange2End})`,
-            data: range2D1Values,
-            borderColor: colorScheme.primary,
-            backgroundColor: colorScheme.light,
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.4,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            spanGaps: true,
-            borderDash: [10, 5],
-          });
-        }
-
-        // Add 2nd derivative if selected
-        if (selectedDerivatives.d2) {
-          const range1D2Values = Array(maxLength).fill(null);
-          range1Data.forEach((d, i) => {
-            range1D2Values[i] = d[`${index}_d2`];
-          });
-          
-          datasets.push({
-            label: `${index} (d2) (${dateRange1Start} to ${dateRange1End})`,
-            data: range1D2Values,
-            borderColor: colorScheme.primary,
-            backgroundColor: colorScheme.light,
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.4,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            spanGaps: true,
-            borderDash: [2, 2],
-          });
-
-          const range2D2Values = Array(maxLength).fill(null);
-          range2Data.forEach((d, i) => {
-            range2D2Values[i] = d[`${index}_d2`];
-          });
-          
-          datasets.push({
-            label: `${index} (d2) (${dateRange2Start} to ${dateRange2End})`,
-            data: range2D2Values,
-            borderColor: colorScheme.primary,
-            backgroundColor: colorScheme.light,
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.4,
-            pointRadius: 2.5,
-            pointHoverRadius: 5,
-            spanGaps: true,
-            borderDash: [6, 3],
-          });
-        }
-      });
-    }
-
-    return datasets;
+  const baseColors = {
+    NDVI: { primary: "#22c55e", secondary: "#16a34a", tertiary: "#15803d" },
+    NDWI: { primary: "#3b82f6", secondary: "#2563eb", tertiary: "#1d4ed8" },
+    NSMI: { primary: "#f97316", secondary: "#ea580c", tertiary: "#c2410c" },
   };
+
+  // ================= NORMAL MODE =================
+  if (!isOverlayMode && Array.isArray(timeseries)) {
+    Object.keys(activeIndices).forEach((index) => {
+      if (!activeIndices[index]) return;
+
+      const colors = baseColors[index];
+
+      if (selectedDerivatives.raw) {
+        datasets.push({
+          label: index,
+          data: timeseries.map((d) => d[index]),
+          borderColor: colors.primary,
+          backgroundColor: `${colors.primary}1a`,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          spanGaps: true,
+        });
+      }
+
+      if (selectedDerivatives.d1) {
+        datasets.push({
+          label: `${index} (d1)`,
+          data: timeseries.map((d) => d[`${index}_d1`]),
+          borderColor: colors.secondary,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          spanGaps: true,
+          borderDash: [5, 5],
+        });
+      }
+
+      if (selectedDerivatives.d2) {
+        datasets.push({
+          label: `${index} (d2)`,
+          data: timeseries.map((d) => d[`${index}_d2`]),
+          borderColor: colors.tertiary,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          spanGaps: true,
+          borderDash: [2, 2],
+        });
+      }
+    });
+  }
+
+  // ================= OVERLAY MODE =================
+  else if (isOverlayMode && timeseries?.ranges?.length >= 2) {
+
+    const range1 = timeseries.ranges[0];
+    const range2 = timeseries.ranges[1];
+
+    const maxLength = Math.max(
+      range1.data.length,
+      range2.data.length
+    );
+
+    Object.keys(activeIndices).forEach((index) => {
+      if (!activeIndices[index]) return;
+
+      const color = baseColors[index].primary;
+
+      // 🚫 NO DERIVATIVES HERE (backend doesn't provide)
+
+      if (selectedDerivatives.raw) {
+        const r1 = Array(maxLength).fill(null);
+        range1.data.forEach((d, i) => {
+          r1[i] = d[index] ?? null;
+        });
+
+        datasets.push({
+          label: `${index} (${range1.range})`,
+          data: r1,
+          borderColor: color,
+          borderWidth: 2.5,
+          fill: false,
+          tension: 0.4,
+          spanGaps: true,
+        });
+
+        const r2 = Array(maxLength).fill(null);
+        range2.data.forEach((d, i) => {
+          r2[i] = d[index] ?? null;
+        });
+
+        datasets.push({
+          label: `${index} (${range2.range})`,
+          data: r2,
+          borderColor: color,
+          borderWidth: 2.5,
+          fill: false,
+          tension: 0.4,
+          spanGaps: true,
+          borderDash: [8, 4],
+        });
+      }
+    });
+  }
+
+  return datasets;
+};
 
   // Get labels based on mode
   const getChartLabels = () => {
-    if (!isOverlayMode) {
-      return timeseries.map((d) => d.date);
-    } else {
-      // For overlay mode, create normalized indices
-      const range1Data = filterByDateRange(timeseries, dateRange1Start, dateRange1End);
-      const range2Data = filterByDateRange(timeseries, dateRange2Start, dateRange2End);
-      const maxLength = Math.max(range1Data.length, range2Data.length);
-      
-      // Use index numbers instead of dates for better comparison
-      return Array.from({ length: maxLength }, (_, i) => `Point ${i + 1}`);
-    }
-  };
+      // NORMAL MODE
+      if (!isOverlayMode && Array.isArray(timeseries)) {
+        return timeseries.map((d) => d.date);
+      }
+      // OVERLAY MODE
+      if (isOverlayMode && timeseries?.ranges?.length >= 2) {
+        const maxLength = Math.max(
+          timeseries.ranges[0].data.length,
+          timeseries.ranges[1].data.length
+        );
+        return Array.from({ length: maxLength }, (_, i) => `Point ${i + 1}`);
+      }
+      return [];
+    };
 
   // Chart configuration
   const chartData = {
@@ -959,7 +860,8 @@ export function ChartModal({
                 justifyContent: "center",
               }}
             >
-              {timeseries.length > 0 ? (
+              {(!isOverlayMode && Array.isArray(timeseries) && timeseries.length > 0) ||
+              (isOverlayMode && timeseries?.ranges?.length >= 2) ? (
                 <div style={{ width: "100%", height: "100%" }}>
                   <Line data={chartData} options={chartOptions} />
                 </div>

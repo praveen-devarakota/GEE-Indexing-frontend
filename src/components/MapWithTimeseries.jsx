@@ -24,6 +24,8 @@ export default function MapWithTimeseries() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [customPopupPos, setCustomPopupPos] = useState(null);
+  const [isOverlayMode, setIsOverlayMode] = useState(false);
+const [overlayRanges, setOverlayRanges] = useState(null);
 
   const popupRef = useRef(null);
 
@@ -122,45 +124,68 @@ export default function MapWithTimeseries() {
     setDownloadUrl(data.download_url);
   };
 
-  const fetchTimeseries = async (latlng) => {
-    setSelectedPoint(latlng);
-    setShowModal(true);
-    setIsFullscreen(false);
-    setCustomPopupPos(null); // Reset custom position when opening new popup
+  const fetchTimeseries = async (
+  latlng,
+  overlayPayload = null   // 👈 optional overlay payload
+) => {
+  setSelectedPoint(latlng);
+  setShowModal(true);
+  setIsFullscreen(false);
+  setCustomPopupPos(null);
 
-    // Calculate pixel position for popup
-    if (mapInstance) {
-      const point = mapInstance.latLngToContainerPoint(latlng);
-      setPopupPosition({ x: point.x, y: point.y });
-    }
+  if (mapInstance) {
+    const point = mapInstance.latLngToContainerPoint(latlng);
+    setPopupPosition({ x: point.x, y: point.y });
+  }
 
-    const res = await fetch(`${BACKEND_URL}/api/timeseries`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+  const payload = overlayPayload
+    ? {
+        point: { lat: latlng.lat, lng: latlng.lng },
+        ranges: overlayPayload,
+        max_cloud: Number(form.max_cloud),
+      }
+    : {
         point: { lat: latlng.lat, lng: latlng.lng },
         start_date: form.start_date,
         end_date: form.end_date,
         max_cloud: Number(form.max_cloud),
-      }),
-    });
+      };
 
-    const data = await res.json();
-    if (!data.success) return alert(data.error);
+  const res = await fetch(`${BACKEND_URL}/api/timeseries`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-    setTimeseries(data.data);
+  const data = await res.json();
+  if (!data.success) return alert(data.error);
+
+  // 🔥 OVERLAY MODE
+  if (data.ranges) {
+    setIsOverlayMode(true);
+    setTimeseries(data);   // full object
+    setStats(null);        // no avg stats for overlay
+    return;
+  }
+
+  // 🔥 NORMAL MODE
+  setIsOverlayMode(false);
+  setTimeseries(data.data);
+
+  if (data.data.length > 0) {
     const avg = (key) =>
-      (data.data.reduce((s, d) => s + d[key], 0) / data.data.length).toFixed(
-        4
-      );
+      (
+        data.data.reduce((s, d) => s + d[key], 0) /
+        data.data.length
+      ).toFixed(4);
 
     setStats({
       avg_ndvi: avg("NDVI"),
       avg_ndwi: avg("NDWI"),
       avg_nsmi: avg("NSMI"),
     });
-  };
-
+  }
+};
   /* =======================
      4. MODAL HANDLERS
   ======================= */
@@ -315,6 +340,7 @@ export default function MapWithTimeseries() {
         selectedPoint={selectedPoint}
         timeseries={timeseries}
         stats={stats}
+        isOverlayMode={isOverlayMode}
         toggleFullscreen={toggleFullscreen}
         closeModal={closeModal}
       />
