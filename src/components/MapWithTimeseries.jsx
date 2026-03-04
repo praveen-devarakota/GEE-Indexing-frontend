@@ -25,7 +25,6 @@ export default function MapWithTimeseries() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [customPopupPos, setCustomPopupPos] = useState(null);
   const [isOverlayMode, setIsOverlayMode] = useState(false);
-const [overlayRanges, setOverlayRanges] = useState(null);
 
   const popupRef = useRef(null);
 
@@ -125,74 +124,77 @@ const [overlayRanges, setOverlayRanges] = useState(null);
   };
 
   const fetchTimeseries = async (
-  latlng,
-  overlayPayload = null   // 👈 optional overlay payload
-) => {
-  setSelectedPoint(latlng);
-  setShowModal(true);
-  setIsFullscreen(false);
-  setCustomPopupPos(null);
+    latlng,
+    overlayPayload = null // 👈 optional overlay payload
+  ) => {
+    setSelectedPoint(latlng);
+    setShowModal(true);
+    setIsFullscreen(false);
+    setCustomPopupPos(null);
 
-  if (mapInstance) {
-    const point = mapInstance.latLngToContainerPoint(latlng);
-    setPopupPosition({ x: point.x, y: point.y });
-  }
+    if (mapInstance) {
+      const point = mapInstance.latLngToContainerPoint(latlng);
+      setPopupPosition({ x: point.x, y: point.y });
+    }
 
-  const payload = overlayPayload
-    ? {
-        point: { lat: latlng.lat, lng: latlng.lng },
-        ranges: overlayPayload,
-        max_cloud: Number(form.max_cloud),
-      }
-    : {
-        point: { lat: latlng.lat, lng: latlng.lng },
-        start_date: form.start_date,
-        end_date: form.end_date,
-        max_cloud: Number(form.max_cloud),
-      };
+    const payload = overlayPayload
+      ? {
+          point: { lat: latlng.lat, lng: latlng.lng },
+          ranges: overlayPayload,
+          max_cloud: Number(form.max_cloud),
+        }
+      : {
+          point: { lat: latlng.lat, lng: latlng.lng },
+          start_date: form.start_date,
+          end_date: form.end_date,
+          max_cloud: Number(form.max_cloud),
+        };
 
-  const res = await fetch(`${BACKEND_URL}/api/timeseries`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await res.json();
-  if (!data.success) return alert(data.error);
-
-  // 🔥 OVERLAY MODE
-  if (data.ranges) {
-    setIsOverlayMode(true);
-    setTimeseries(data);   // full object
-    setStats(null);        // no avg stats for overlay
-    return;
-  }
-
-  // 🔥 NORMAL MODE
-  setIsOverlayMode(false);
-  setTimeseries(data.data);
-
-  if (data.data.length > 0) {
-    const avg = (key) =>
-      (
-        data.data.reduce((s, d) => s + d[key], 0) /
-        data.data.length
-      ).toFixed(4);
-
-    setStats({
-      avg_ndvi: avg("NDVI"),
-      avg_ndwi: avg("NDWI"),
-      avg_nsmi: avg("NSMI"),
+    const res = await fetch(`${BACKEND_URL}/api/timeseries`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
-  }
-};
+
+    const data = await res.json();
+    if (!data.success) return alert(data.error);
+
+    // 🔥 OVERLAY MODE
+    if (data.ranges) {
+      setIsOverlayMode(true);
+      setTimeseries(data); // full object
+      setStats(null); // no avg stats for overlay
+      return;
+    }
+
+    // 🔥 NORMAL MODE
+    setIsOverlayMode(false);
+    setTimeseries(data.data);
+
+    if (data.data.length > 0) {
+      const avg = (key) =>
+        (
+          data.data.reduce((s, d) => s + d[key], 0) /
+          data.data.length
+        ).toFixed(4);
+
+      setStats({
+        avg_ndvi: avg("NDVI"),
+        avg_ndwi: avg("NDWI"),
+        avg_nsmi: avg("NSMI"),
+      });
+    }
+  };
+
   /* =======================
      4. MODAL HANDLERS
   ======================= */
 
+  // FIX: Reset isOverlayMode when modal is closed so next normal click isn't stuck in overlay mode
   const closeModal = () => {
     setShowModal(false);
     setCustomPopupPos(null);
+    setIsOverlayMode(false);
   };
 
   const toggleFullscreen = () => {
@@ -331,19 +333,21 @@ const [overlayRanges, setOverlayRanges] = useState(null);
         toggleFullscreen={toggleFullscreen}
         timeseries={timeseries}
         stats={stats}
+        isOverlayMode={isOverlayMode}
       />
 
       {/* Chart Modal - Fullscreen Only */}
       <ChartModal
-        showModal={showModal}
-        isFullscreen={isFullscreen}
-        selectedPoint={selectedPoint}
-        timeseries={timeseries}
-        stats={stats}
-        isOverlayMode={isOverlayMode}
-        toggleFullscreen={toggleFullscreen}
-        closeModal={closeModal}
-      />
+  showModal={showModal}
+  isFullscreen={isFullscreen}
+  selectedPoint={selectedPoint}
+  timeseries={timeseries}
+  stats={stats}
+  isOverlayMode={isOverlayMode}
+  toggleFullscreen={toggleFullscreen}
+  closeModal={closeModal}
+  fetchTimeseries={fetchTimeseries} // <-- Pass it here
+/>
     </div>
   );
 }

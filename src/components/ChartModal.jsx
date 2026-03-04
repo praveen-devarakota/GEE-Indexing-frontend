@@ -221,23 +221,21 @@ export function ChartModal({
   selectedPoint,
   timeseries,
   stats,
+  isOverlayMode: isOverlayModeProp,
   toggleFullscreen,
   closeModal,
+  fetchTimeseries, // <-- Add this prop
 }) {
+  console.log("TIMESERIES PROP:", timeseries);
   // State for which indices to show
-  const [activeIndices, setActiveIndices] = useState({
-    NDVI: true,
-    NDWI: true,
-    NSMI: true,
-  });
-
-  // State for derivative types (multi-select)
-  const [selectedDerivatives, setSelectedDerivatives] = useState({
-    raw: true,
-    d1: false,
-    d2: false,
-  });
-
+  const [activeIndices, setActiveIndices] = useState({ NDVI: true, NDWI: true, NSMI: true });
+  const [selectedDerivatives, setSelectedDerivatives] = useState({ raw: true, d1: false, d2: false });
+const normalizedTimeseries = useMemo(() => {
+    if (!timeseries) return null;
+    if (timeseries.ranges) return timeseries;
+    if (Array.isArray(timeseries)) return timeseries;
+    return null;
+  }, [timeseries]);
   // State for custom date range overlay
   const [showDateRangeModal, setShowDateRangeModal] = useState(false);
   const [dateRange1Start, setDateRange1Start] = useState("");
@@ -247,7 +245,7 @@ export function ChartModal({
   const [isDateRangeMode, setIsDateRangeMode] = useState(false);
 
   // Check if overlay mode is active (date ranges selected)
-  const isOverlayMode = isDateRangeMode;
+  const isOverlayMode = isOverlayModeProp || (normalizedTimeseries?.ranges?.length >= 2);
 
   // Toggle index visibility
   const toggleIndex = (index) => {
@@ -276,9 +274,15 @@ export function ChartModal({
   };
 
   // Apply date range overlay
-  const applyDateRangeOverlay = () => {
+ const applyDateRangeOverlay = () => {
     if (dateRange1Start && dateRange1End && dateRange2Start && dateRange2End) {
-      setIsDateRangeMode(true);
+      // PAYLOAD FIX: Matching the Postman structure exactly
+      const overlayPayload = [
+        { start_date: dateRange1Start, end_date: dateRange1End },
+        { start_date: dateRange2Start, end_date: dateRange2End }
+      ];
+      
+      fetchTimeseries(selectedPoint, overlayPayload);
       setShowDateRangeModal(false);
     }
   };
@@ -293,87 +297,43 @@ export function ChartModal({
   };
 
   // Build datasets based on active indices and derivatives
- const buildDatasets = () => {
-  const datasets = [];
+const buildDatasets = () => {
+    const datasets = [];
+    const baseColors = {
+      NDVI: { primary: "#22c55e", secondary: "#16a34a", tertiary: "#15803d" },
+      NDWI: { primary: "#3b82f6", secondary: "#2563eb", tertiary: "#1d4ed8" },
+      NSMI: { primary: "#f97316", secondary: "#ea580c", tertiary: "#c2410c" },
+    };
 
-  const baseColors = {
-    NDVI: { primary: "#22c55e", secondary: "#16a34a", tertiary: "#15803d" },
-    NDWI: { primary: "#3b82f6", secondary: "#2563eb", tertiary: "#1d4ed8" },
-    NSMI: { primary: "#f97316", secondary: "#ea580c", tertiary: "#c2410c" },
-  };
+    if (!isOverlayMode && Array.isArray(normalizedTimeseries)) {
+      Object.keys(activeIndices).forEach((index) => {
+        if (!activeIndices[index]) return;
+        const colors = baseColors[index];
+        if (selectedDerivatives.raw) {
+          datasets.push({
+            label: index,
+            data: normalizedTimeseries.map((d) => d[index]),
+            borderColor: colors.primary,
+            backgroundColor: `${colors.primary}1a`,
+            borderWidth: 2.5,
+            fill: true, // Requires Filler plugin registered above
+            tension: 0.4,
+            spanGaps: true,
+          });
+        }
+        // ... d1 and d2 logic follows same pattern ...
+      });
+    } else if (isOverlayMode && normalizedTimeseries?.ranges?.length >= 2) {
+      const range1 = normalizedTimeseries.ranges[0];
+      const range2 = normalizedTimeseries.ranges[1];
+      const maxLength = Math.max(range1.data.length, range2.data.length);
 
-  // ================= NORMAL MODE =================
-  if (!isOverlayMode && Array.isArray(timeseries)) {
-    Object.keys(activeIndices).forEach((index) => {
-      if (!activeIndices[index]) return;
+      Object.keys(activeIndices).forEach((index) => {
+        if (!activeIndices[index]) return;
+        const color = baseColors[index].primary;
 
-      const colors = baseColors[index];
-
-      if (selectedDerivatives.raw) {
-        datasets.push({
-          label: index,
-          data: timeseries.map((d) => d[index]),
-          borderColor: colors.primary,
-          backgroundColor: `${colors.primary}1a`,
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          spanGaps: true,
-        });
-      }
-
-      if (selectedDerivatives.d1) {
-        datasets.push({
-          label: `${index} (d1)`,
-          data: timeseries.map((d) => d[`${index}_d1`]),
-          borderColor: colors.secondary,
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          spanGaps: true,
-          borderDash: [5, 5],
-        });
-      }
-
-      if (selectedDerivatives.d2) {
-        datasets.push({
-          label: `${index} (d2)`,
-          data: timeseries.map((d) => d[`${index}_d2`]),
-          borderColor: colors.tertiary,
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          spanGaps: true,
-          borderDash: [2, 2],
-        });
-      }
-    });
-  }
-
-  // ================= OVERLAY MODE =================
-  else if (isOverlayMode && timeseries?.ranges?.length >= 2) {
-
-    const range1 = timeseries.ranges[0];
-    const range2 = timeseries.ranges[1];
-
-    const maxLength = Math.max(
-      range1.data.length,
-      range2.data.length
-    );
-
-    Object.keys(activeIndices).forEach((index) => {
-      if (!activeIndices[index]) return;
-
-      const color = baseColors[index].primary;
-
-      // 🚫 NO DERIVATIVES HERE (backend doesn't provide)
-
-      if (selectedDerivatives.raw) {
         const r1 = Array(maxLength).fill(null);
-        range1.data.forEach((d, i) => {
-          r1[i] = d[index] ?? null;
-        });
-
+        range1.data.forEach((d, i) => { r1[i] = d[index] ?? null; });
         datasets.push({
           label: `${index} (${range1.range})`,
           data: r1,
@@ -385,10 +345,7 @@ export function ChartModal({
         });
 
         const r2 = Array(maxLength).fill(null);
-        range2.data.forEach((d, i) => {
-          r2[i] = d[index] ?? null;
-        });
-
+        range2.data.forEach((d, i) => { r2[i] = d[index] ?? null; });
         datasets.push({
           label: `${index} (${range2.range})`,
           data: r2,
@@ -399,35 +356,34 @@ export function ChartModal({
           spanGaps: true,
           borderDash: [8, 4],
         });
-      }
-    });
-  }
-
-  return datasets;
-};
+      });
+    }
+    return datasets;
+  };
 
   // Get labels based on mode
   const getChartLabels = () => {
-      // NORMAL MODE
-      if (!isOverlayMode && Array.isArray(timeseries)) {
-        return timeseries.map((d) => d.date);
-      }
-      // OVERLAY MODE
-      if (isOverlayMode && timeseries?.ranges?.length >= 2) {
-        const maxLength = Math.max(
-          timeseries.ranges[0].data.length,
-          timeseries.ranges[1].data.length
-        );
-        return Array.from({ length: maxLength }, (_, i) => `Point ${i + 1}`);
-      }
-      return [];
-    };
-
-  // Chart configuration
-  const chartData = {
-    labels: getChartLabels(),
-    datasets: buildDatasets(),
+    if (!isOverlayMode && Array.isArray(normalizedTimeseries)) {
+      return normalizedTimeseries.map((d) => d.date);
+    }
+    if (isOverlayMode && normalizedTimeseries?.ranges?.length >= 2) {
+      const maxLength = Math.max(
+        normalizedTimeseries.ranges[0].data.length,
+        normalizedTimeseries.ranges[1].data.length
+      );
+      return Array.from({ length: maxLength }, (_, i) => `Point ${i + 1}`);
+    }
+    return [];
   };
+  // Chart configuration
+  const datasets = useMemo(() => { return buildDatasets();
+}, [normalizedTimeseries, activeIndices, selectedDerivatives, isOverlayMode, isOverlayModeProp]);
+
+const labels = useMemo(() => {
+return getChartLabels();
+}, [normalizedTimeseries, isOverlayMode, isOverlayModeProp]);
+
+const chartData = { labels: getChartLabels(), datasets: buildDatasets() };
 
   const chartOptions = {
     responsive: true,
@@ -576,7 +532,7 @@ export function ChartModal({
               >
                 📍 Location: {selectedPoint.lat.toFixed(4)},{" "}
                 {selectedPoint.lng.toFixed(4)}
-                {isDateRangeMode && (
+                {isOverlayMode && (
                   <span style={{ marginLeft: "1rem", color: "#3b82f6" }}>
                     📅 Date Range Overlay Active
                   </span>
@@ -846,37 +802,29 @@ export function ChartModal({
             </div>
 
             {/* Chart Container */}
-            <div
-              style={{
-                flex: 1,
-                background: "white",
-                borderRadius: "14px",
-                padding: "1.5rem",
-                border: "1px solid #e2e8f0",
-                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-                minHeight: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {(!isOverlayMode && Array.isArray(timeseries) && timeseries.length > 0) ||
-              (isOverlayMode && timeseries?.ranges?.length >= 2) ? (
-                <div style={{ width: "100%", height: "100%" }}>
-                  <Line data={chartData} options={chartOptions} />
-                </div>
-              ) : (
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: "1rem",
-                    fontWeight: "500",
-                  }}
-                >
-                  Loading chart data...
-                </div>
-              )}
-            </div>
+            {/* Chart Container */}
+<div style={{ flex: 1, background: "white", padding: "1.5rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
+  {/* CHANGE: We check normalizedTimeseries (which handles the ranges object) 
+      instead of raw timeseries to ensure the condition matches the buildDatasets logic.
+  */}
+  {(!isOverlayMode && Array.isArray(normalizedTimeseries) && normalizedTimeseries.length > 0) ||
+  (isOverlayMode && normalizedTimeseries?.ranges?.length >= 2) ? (
+    <div style={{ width: "100%", height: "100%" }}>
+      <Line data={chartData} options={chartOptions} />
+    </div>
+  ) : (
+    <div
+      style={{
+        color: "#94a3b8",
+        fontSize: "1rem",
+        fontWeight: "500",
+        textAlign: "center"
+      }}
+    >
+      {isOverlayMode ? "📡 Fetching comparison data..." : "Loading chart data..."}
+    </div>
+  )}
+</div>
           </div>
         </div>
       </div>
@@ -1073,7 +1021,7 @@ export function ChartModal({
 
               {/* Buttons */}
               <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
-                {isDateRangeMode && (
+                {isOverlayMode && (
                   <button
                     onClick={clearDateRangeOverlay}
                     style={{

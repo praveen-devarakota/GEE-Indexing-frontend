@@ -7,7 +7,18 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Legend,
+  Tooltip,
+} from "chart.js";
 
+ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Legend, Tooltip);
 // Proper marker icon fix for Vite + Leaflet
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
@@ -92,6 +103,33 @@ function StatCard({
   );
 }
 
+function MiniChart({ timeseries, isOverlayMode }) {
+  const baseColors = { NDVI: "#22c55e", NDWI: "#3b82f6", NSMI: "#f97316" };
+  let labels = [], datasets = [];
+
+  if (isOverlayMode && timeseries?.ranges?.length >= 2) {
+    const r1 = timeseries.ranges[0], r2 = timeseries.ranges[1];
+    const maxLen = Math.max(r1.data.length, r2.data.length);
+    labels = Array.from({ length: maxLen }, (_, i) => `P${i + 1}`);
+    ["NDVI", "NDWI", "NSMI"].forEach((key) => {
+      const color = baseColors[key];
+      const d1 = Array(maxLen).fill(null); r1.data.forEach((d, i) => { d1[i] = d[key] ?? null; });
+      const d2 = Array(maxLen).fill(null); r2.data.forEach((d, i) => { d2[i] = d[key] ?? null; });
+      datasets.push({ label: `${key} (${r1.range})`, data: d1, borderColor: color, borderWidth: 1.5, fill: false, tension: 0.4, spanGaps: true, pointRadius: 0 });
+      datasets.push({ label: `${key} (${r2.range})`, data: d2, borderColor: color, borderWidth: 1.5, borderDash: [5, 3], fill: false, tension: 0.4, spanGaps: true, pointRadius: 0 });
+    });
+  } else if (Array.isArray(timeseries) && timeseries.length > 0) {
+    labels = timeseries.map((d) => d.date.slice(5));
+    ["NDVI", "NDWI", "NSMI"].forEach((key) => {
+      datasets.push({ label: key, data: timeseries.map((d) => d[key]), borderColor: baseColors[key], borderWidth: 1.5, fill: false, tension: 0.4, spanGaps: true, pointRadius: 0 });
+    });
+  }
+
+  if (!datasets.length) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", color:"#94a3b8", fontSize:"0.75rem" }}>Loading chart data...</div>;
+
+  return <Line data={{ labels, datasets }} options={{ responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: true, position: "top", labels: { font: { size: 9 }, boxWidth: 8, padding: 6 } }, tooltip: { mode: "index", intersect: false } }, scales: { x: { ticks: { font: { size: 8 }, autoSkip: true, maxTicksLimit: 8 } }, y: { ticks: { font: { size: 8 } }, grace: "10%" } } }} />;
+}
+
 export function MapSection({
   tileUrl,
   selectedPoint,
@@ -109,7 +147,13 @@ export function MapSection({
   toggleFullscreen,
   timeseries,
   stats,
+  isOverlayMode,
 }) {
+  // CHANGE 4: Safe data check that works for both array (normal) and object (overlay)
+  const hasData = isOverlayMode
+    ? timeseries?.ranges?.length >= 2
+    : Array.isArray(timeseries) && timeseries.length > 0;
+
   return (
     <div
       style={{
@@ -211,7 +255,7 @@ export function MapSection({
                 position: "absolute",
                 ...getPopupStyle(),
                 width: "480px",
-                maxHeight: "380px",
+                maxHeight: "440px",
                 background: "rgba(255, 255, 255, 0.98)",
                 backdropFilter: "blur(20px)",
                 borderRadius: "16px",
@@ -269,7 +313,8 @@ export function MapSection({
                         letterSpacing: "-0.025em",
                       }}
                     >
-                      📊 Analytics Dashboard
+                      {/* CHANGE 5: Show different title in overlay mode */}
+                      📊 {isOverlayMode ? "Overlay Comparison" : "Analytics Dashboard"}
                     </h4>
                   </div>
                   {selectedPoint && (
@@ -361,72 +406,93 @@ export function MapSection({
                   gap: "1rem",
                 }}
               >
-                {/* Statistics Cards */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  <h5
+                {/* CHANGE 5: Statistics Cards — hidden in overlay mode (stats is null) */}
+                {!isOverlayMode && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <h5
+                      style={{
+                        margin: "0 0 0.25rem 0",
+                        fontSize: "0.813rem",
+                        fontWeight: "700",
+                        color: "#0f172a",
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      Statistics
+                    </h5>
+
+                    {stats ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        <StatCard
+                          label="NDVI"
+                          value={stats.avg_ndvi}
+                          unit="Vegetation"
+                          bgGradient="linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
+                          borderColor="#a7f3d0"
+                          textColor="#059669"
+                          unitColor="#047857"
+                        />
+                        <StatCard
+                          label="NDWI"
+                          value={stats.avg_ndwi}
+                          unit="Water"
+                          bgGradient="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
+                          borderColor="#93c5fd"
+                          textColor="#2563eb"
+                          unitColor="#1d4ed8"
+                        />
+                        <StatCard
+                          label="NSMI"
+                          value={stats.avg_nsmi}
+                          unit="Soil"
+                          bgGradient="linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
+                          borderColor="#fcd34d"
+                          textColor="#d97706"
+                          unitColor="#b45309"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          textAlign: "center",
+                          color: "#94a3b8",
+                          fontSize: "0.75rem",
+                          padding: "1rem",
+                          fontWeight: "500",
+                        }}
+                      >
+                        Loading statistics...
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* CHANGE 5: Overlay range banner — shown instead of stats in overlay mode */}
+                {isOverlayMode && timeseries?.ranges && (
+                  <div
                     style={{
-                      margin: "0 0 0.25rem 0",
-                      fontSize: "0.813rem",
-                      fontWeight: "700",
-                      color: "#0f172a",
-                      letterSpacing: "-0.01em",
+                      background: "linear-gradient(135deg, #eff6ff, #dbeafe)",
+                      borderRadius: "8px",
+                      padding: "0.5rem 0.75rem",
+                      fontSize: "0.75rem",
+                      color: "#2563eb",
+                      fontWeight: "600",
+                      border: "1px solid #bfdbfe",
                     }}
                   >
-                    Statistics
-                  </h5>
+                    🔀 {timeseries.ranges[0]?.range}{" "}
+                    <span style={{ color: "#94a3b8", fontWeight: "400" }}>vs</span>{" "}
+                    {timeseries.ranges[1]?.range}
+                  </div>
+                )}
 
-                  {stats ? (
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(3, 1fr)",
-                        gap: "0.5rem",
-                      }}
-                    >
-                      <StatCard
-                        label="NDVI"
-                        value={stats.avg_ndvi}
-                        unit="Vegetation"
-                        bgGradient="linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
-                        borderColor="#a7f3d0"
-                        textColor="#059669"
-                        unitColor="#047857"
-                      />
-                      <StatCard
-                        label="NDWI"
-                        value={stats.avg_ndwi}
-                        unit="Water"
-                        bgGradient="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
-                        borderColor="#93c5fd"
-                        textColor="#2563eb"
-                        unitColor="#1d4ed8"
-                      />
-                      <StatCard
-                        label="NSMI"
-                        value={stats.avg_nsmi}
-                        unit="Soil"
-                        bgGradient="linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
-                        borderColor="#fcd34d"
-                        textColor="#d97706"
-                        unitColor="#b45309"
-                      />
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        textAlign: "center",
-                        color: "#94a3b8",
-                        fontSize: "0.75rem",
-                        padding: "1rem",
-                        fontWeight: "500",
-                      }}
-                    >
-                      Loading statistics...
-                    </div>
-                  )}
-                </div>
-
-                {/* Chart Section - Using compact version */}
+                {/* Chart Section */}
                 <div
                   style={{
                     display: "flex",
@@ -447,19 +513,21 @@ export function MapSection({
                     Time Series
                   </h5>
 
-                  {timeseries.length > 0 ? (
-                    <div
-                      style={{
-                        flex: 1,
-                        minHeight: "200px",
-                        background: "white",
-                        borderRadius: "10px",
-                        padding: "0.75rem",
-                        border: "1px solid #e2e8f0",
-                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.04)",
-                      }}
-                    >
-                      {/* Chart will be rendered by parent component */}
+                  {/* CHANGE 4: Use hasData (safe for both array and overlay object) + render real MiniChart */}
+                  <div
+                    style={{
+                      flex: 1,
+                      minHeight: "200px",
+                      background: "white",
+                      borderRadius: "10px",
+                      padding: "0.75rem",
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.04)",
+                    }}
+                  >
+                    {hasData ? (
+                      <MiniChart timeseries={timeseries} isOverlayMode={isOverlayMode} />
+                    ) : (
                       <div
                         style={{
                           width: "100%",
@@ -467,39 +535,15 @@ export function MapSection({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
+                          color: "#94a3b8",
+                          fontSize: "0.75rem",
+                          fontWeight: "500",
                         }}
                       >
-                        <p
-                          style={{
-                            color: "#94a3b8",
-                            fontSize: "0.75rem",
-                            fontWeight: "500",
-                          }}
-                        >
-                          Chart placeholder - See fullscreen for detailed view
-                        </p>
+                        Loading chart 
                       </div>
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        flex: 1,
-                        minHeight: "200px",
-                        background: "white",
-                        borderRadius: "10px",
-                        padding: "0.75rem",
-                        border: "1px solid #e2e8f0",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "#94a3b8",
-                        fontSize: "0.75rem",
-                        fontWeight: "500",
-                      }}
-                    >
-                      Loading chart data...
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
