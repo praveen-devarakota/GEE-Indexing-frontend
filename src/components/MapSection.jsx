@@ -70,13 +70,15 @@ function MiniChart({ timeseries, isOverlayMode }) {
     const r1 = timeseries.ranges[0];
     const r2 = timeseries.ranges[1];
     const maxLen = Math.max(r1.data.length, r2.data.length);
+
+    // Synthetic "P1…PN" labels — one per position, drives all datasets by index
     labels = Array.from({ length: maxLen }, (_, i) => `P${i + 1}`);
 
     ["NDVI", "NDWI", "NSMI"].forEach((key) => {
       const color = baseColors[key];
 
-      const d1 = Array(maxLen).fill(null);
-      r1.data.forEach((d, i) => { d1[i] = d[key] ?? null; });
+      // Plain scalar arrays — length == maxLen, nulls where range is shorter
+      const d1 = Array.from({ length: maxLen }, (_, i) => r1.data[i]?.[key] ?? null);
       datasets.push({
         label: `${key} (${r1.range})`,
         data: d1,
@@ -88,14 +90,12 @@ function MiniChart({ timeseries, isOverlayMode }) {
         pointRadius: 0,
       });
 
-      const d2 = Array(maxLen).fill(null);
-      r2.data.forEach((d, i) => { d2[i] = d[key] ?? null; });
+      const d2 = Array.from({ length: maxLen }, (_, i) => r2.data[i]?.[key] ?? null);
       datasets.push({
         label: `${key} (${r2.range})`,
         data: d2,
         borderColor: color,
         borderWidth: 1.5,
-        // ✅ Fix: segment.borderDash is the correct Chart.js 3+ way to dash a line
         segment: { borderDash: () => [5, 3] },
         fill: false,
         tension: 0.4,
@@ -104,6 +104,7 @@ function MiniChart({ timeseries, isOverlayMode }) {
       });
     });
   } else if (Array.isArray(timeseries) && timeseries.length > 0) {
+    // Normal mode — one label per scene, plain scalar per dataset
     labels = timeseries.map((d) => d.date.slice(5));
     ["NDVI", "NDWI", "NSMI"].forEach((key) => {
       datasets.push({
@@ -133,14 +134,29 @@ function MiniChart({ timeseries, isOverlayMode }) {
       options={{
         responsive: true,
         maintainAspectRatio: false,
+        // No parsing:false — plain scalar arrays map to labels by index,
+        // so every scene from the backend appears on the chart.
         animation: false,
         plugins: {
-          legend: { display: true, position: "top", labels: { font: { size: 9 }, boxWidth: 8, padding: 6 } },
+          legend: {
+            display: true,
+            position: "top",
+            labels: { font: { size: 9 }, boxWidth: 8, padding: 6 },
+          },
           tooltip: { mode: "index", intersect: false },
         },
         scales: {
-          x: { ticks: { font: { size: 8 }, autoSkip: true, maxTicksLimit: 8 } },
-          y: { ticks: { font: { size: 8 } }, grace: "10%" },
+          x: {
+            ticks: {
+              font: { size: 8 },
+              autoSkip: true,
+              maxTicksLimit: 8,
+            },
+          },
+          y: {
+            ticks: { font: { size: 8 } },
+            grace: "10%",
+          },
         },
       }}
     />
