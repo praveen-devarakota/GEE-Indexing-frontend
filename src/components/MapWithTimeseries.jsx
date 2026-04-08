@@ -6,9 +6,7 @@ import { ChartModal } from "./ChartModal";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 export default function MapWithTimeseries() {
-  /* =======================
-     1. STATES
-  ======================= */
+
 
   const [tileUrl, setTileUrl] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
@@ -24,8 +22,7 @@ export default function MapWithTimeseries() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [customPopupPos, setCustomPopupPos] = useState(null);
-  const [isOverlayMode, setIsOverlayMode] = useState(false);
-
+ 
   const popupRef = useRef(null);
 
   const [form, setForm] = useState({
@@ -71,7 +68,6 @@ export default function MapWithTimeseries() {
       const newX = e.clientX - dragOffset.x;
       const newY = e.clientY - dragOffset.y;
 
-      // Constrain to viewport
       const rect = popupRef.current.getBoundingClientRect();
       const maxX = window.innerWidth - rect.width;
       const maxY = window.innerHeight - rect.height;
@@ -123,10 +119,9 @@ export default function MapWithTimeseries() {
     setDownloadUrl(data.download_url);
   };
 
-  const fetchTimeseries = async (
-    latlng,
-    overlayPayload = null // 👈 optional overlay payload
-  ) => {
+  // overlayPayload is an optional { ranges: [...] } object built by ChartModal
+  // and passed back up when the user applies a date-range overlay.
+  const fetchTimeseries = async (latlng, overlayPayload = null) => {
     setSelectedPoint(latlng);
     setShowModal(true);
     setIsFullscreen(false);
@@ -140,7 +135,7 @@ export default function MapWithTimeseries() {
     const payload = overlayPayload
       ? {
           point: { lat: latlng.lat, lng: latlng.lng },
-          ranges: overlayPayload,
+          ranges: overlayPayload.ranges,
           max_cloud: Number(form.max_cloud),
         }
       : {
@@ -159,24 +154,21 @@ export default function MapWithTimeseries() {
     const data = await res.json();
     if (!data.success) return alert(data.error);
 
-    // 🔥 OVERLAY MODE
+    // OVERLAY MODE — backend returns { ranges: [...] }
     if (data.ranges) {
-      setIsOverlayMode(true);
-      setTimeseries(data); // full object
-      setStats(null); // no avg stats for overlay
+      setTimeseries(data);
+      setStats(null);
       return;
     }
 
-    // 🔥 NORMAL MODE
-    setIsOverlayMode(false);
+    // NORMAL MODE
     setTimeseries(data.data);
 
     if (data.data.length > 0) {
       const avg = (key) =>
-        (
-          data.data.reduce((s, d) => s + d[key], 0) /
-          data.data.length
-        ).toFixed(4);
+        (data.data.reduce((s, d) => s + d[key], 0) / data.data.length).toFixed(
+          4,
+        );
 
       setStats({
         avg_ndvi: avg("NDVI"),
@@ -190,18 +182,15 @@ export default function MapWithTimeseries() {
      4. MODAL HANDLERS
   ======================= */
 
-  // FIX: Reset isOverlayMode when modal is closed so next normal click isn't stuck in overlay mode
   const closeModal = () => {
     setShowModal(false);
     setCustomPopupPos(null);
-    setIsOverlayMode(false);
   };
 
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
 
-  // Calculate final popup position
   const getPopupStyle = () => {
     if (customPopupPos) {
       return {
@@ -217,7 +206,7 @@ export default function MapWithTimeseries() {
           : popupPosition.x + 80;
       const topPosition = Math.max(
         40,
-        Math.min(popupPosition.y - 180, window.innerHeight - 400)
+        Math.min(popupPosition.y - 180, window.innerHeight - 400),
       );
 
       return {
@@ -255,44 +244,23 @@ export default function MapWithTimeseries() {
         }
         
         @keyframes slideInFromTop {
-          from {
-            opacity: 0;
-            transform: translateY(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
         
         @keyframes geniePopup {
-          0% {
-            opacity: 0;
-            transform: scale(0) translateY(50px);
-          }
-          60% {
-            opacity: 1;
-            transform: scale(1.05) translateY(-5px);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
+          0% { opacity: 0; transform: scale(0) translateY(50px); }
+          60% { opacity: 1; transform: scale(1.05) translateY(-5px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
         }
         
         @keyframes dashAnimation {
-          to {
-            stroke-dashoffset: -10;
-          }
+          to { stroke-dashoffset: -10; }
         }
         
         .drag-handle {
@@ -305,7 +273,6 @@ export default function MapWithTimeseries() {
         }
       `}</style>
 
-      {/* Fixed Top Control Panel */}
       <TopPanel
         form={form}
         setForm={setForm}
@@ -315,7 +282,6 @@ export default function MapWithTimeseries() {
         downloadUrl={downloadUrl}
       />
 
-      {/* Map Container with Padding */}
       <MapSection
         tileUrl={tileUrl}
         selectedPoint={selectedPoint}
@@ -333,21 +299,23 @@ export default function MapWithTimeseries() {
         toggleFullscreen={toggleFullscreen}
         timeseries={timeseries}
         stats={stats}
-        isOverlayMode={isOverlayMode}
+        isOverlayMode={
+          timeseries &&
+          !Array.isArray(timeseries) &&
+          Array.isArray(timeseries.ranges)
+        }
       />
 
-      {/* Chart Modal - Fullscreen Only */}
       <ChartModal
-  showModal={showModal}
-  isFullscreen={isFullscreen}
-  selectedPoint={selectedPoint}
-  timeseries={timeseries}
-  stats={stats}
-  isOverlayMode={isOverlayMode}
-  toggleFullscreen={toggleFullscreen}
-  closeModal={closeModal}
-  fetchTimeseries={fetchTimeseries} // <-- Pass it here
-/>
+        showModal={showModal}
+        isFullscreen={isFullscreen}
+        selectedPoint={selectedPoint}
+        timeseries={timeseries}
+        stats={stats}
+        toggleFullscreen={toggleFullscreen}
+        closeModal={closeModal}
+        fetchTimeseries={fetchTimeseries}
+      />
     </div>
   );
 }
