@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -78,6 +78,400 @@ function FilterButton({ active, onClick, children }) {
   );
 }
 
+// ─── Chatbot Panel ──────────────────────────────────────────────────────────
+function ChatbotPanel({ timeseries, stats, selectedPoint, isOverlayMode, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAnalyzed, setIsAnalyzed] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState(null);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    const hasData =
+      (!isOverlayMode && Array.isArray(timeseries) && timeseries.length > 0) ||
+      (isOverlayMode && timeseries?.ranges?.length >= 2);
+
+    if (hasData && !isAnalyzed && !isAnalyzing) {
+      analyzeData();
+    }
+  }, []);
+
+  const analyzeData = async () => {
+    setIsAnalyzing(true);
+    setAnalyzeError(null);
+
+    try {
+      // ✅ FIX 1: Backend expects { data: [...] }
+      const rawData = isOverlayMode ? timeseries?.ranges : timeseries;
+
+      const res = await fetch("https://satellite-index-viewer-backend-1.onrender.com/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: rawData }),
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+      const responseJson = await res.json();
+
+      if (!responseJson.success) {
+        throw new Error(responseJson.error || "Analysis failed");
+      }
+
+      // ✅ FIX 2: Backend returns { success, analysis: { trend, key_events, summary } }
+      const analysis = responseJson.analysis;
+      const greeting =
+        analysis?.summary ||
+        "✅ Analysis complete! Ask me anything about the NDVI, NDWI, or NSMI trends, anomalies, or patterns.";
+
+      setIsAnalyzed(true);
+      setMessages([{ role: "assistant", text: greeting }]);
+    } catch (err) {
+      setAnalyzeError(err.message);
+      setMessages([
+        {
+          role: "assistant",
+          text: `⚠️ Could not connect to the analysis service. Please ensure the backend is running.\n\nError: ${err.message}`,
+          isError: true,
+        },
+      ]);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+const sendMessage = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || isSending) return;
+
+    const userMsg = { role: "user", text: trimmed };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setIsSending(true);
+
+    try {
+      const res = await fetch("https://satellite-index-viewer-backend-1.onrender.com/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: trimmed }),
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+      const responseJson = await res.json();
+
+      if (!responseJson.success) {
+        throw new Error(responseJson.error || "Chat failed");
+      }
+
+      // ✅ Safely extract string no matter how nested the response is
+      let replyText = responseJson.answer;
+      if (typeof replyText === "object" && replyText !== null) {
+        replyText = replyText.answer ?? JSON.stringify(replyText);
+      }
+      if (typeof replyText !== "string") {
+        replyText = String(replyText ?? "No response received.");
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: replyText },
+      ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: `⚠️ Failed to get a response.\n\nError: ${err.message}`,
+          isError: true,
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // ── JSX below is unchanged — no UI modifications ──────────────────────────
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: "5.5rem",
+        right: "2rem",
+        width: "380px",
+        maxHeight: "520px",
+        background: "white",
+        borderRadius: "20px",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.18), 0 4px 20px rgba(99,102,241,0.12)",
+        border: "1px solid #e0e7ff",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        zIndex: 1010,
+        animation: "chatSlideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      }}
+    >
+      <style>{`
+        @keyframes chatSlideUp {
+          from { opacity: 0; transform: translateY(16px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0)   scale(1);    }
+        }
+        @keyframes dotPulse {
+          0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+          40%            { transform: scale(1);   opacity: 1;   }
+        }
+        .chat-input:focus { outline: none; border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+        .chat-send-btn:hover:not(:disabled) { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important; transform: scale(1.04); }
+        .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .chat-msg-bubble { animation: chatSlideUp 0.18s ease; }
+        .retry-btn:hover { background: #ede9fe !important; }
+      `}</style>
+
+      {/* Header */}
+      <div
+        style={{
+          padding: "1rem 1.25rem",
+          background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+          <div
+            style={{
+              width: "32px", height: "32px", borderRadius: "50%",
+              background: "rgba(255,255,255,0.2)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "1rem",
+            }}
+          >
+            🤖
+          </div>
+          <div>
+            <div style={{ color: "white", fontWeight: "700", fontSize: "0.9rem", lineHeight: 1.2 }}>
+              Curve Analyst AI
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.7rem" }}>
+              {isAnalyzing
+                ? "Analyzing data…"
+                : isAnalyzed
+                ? "● Ready to chat"
+                : analyzeError
+                ? "● Connection error"
+                : "Initializing…"}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: "rgba(255,255,255,0.15)", border: "none",
+            borderRadius: "8px", width: "28px", height: "28px",
+            cursor: "pointer", color: "white", fontSize: "1rem",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "background 0.15s",
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.28)"; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.15)"; }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div
+        style={{
+          flex: 1, overflowY: "auto", padding: "1rem",
+          display: "flex", flexDirection: "column", gap: "0.625rem",
+          background: "#fafafa",
+        }}
+      >
+        {isAnalyzing && messages.length === 0 && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", flexShrink: 0 }}>
+              🤖
+            </div>
+            <div
+              style={{
+                background: "white", borderRadius: "0 12px 12px 12px",
+                padding: "0.75rem 1rem",
+                border: "1px solid #e0e7ff",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                display: "flex", alignItems: "center", gap: "0.375rem",
+              }}
+            >
+              <span style={{ fontSize: "0.8rem", color: "#6366f1", fontWeight: "600" }}>Analyzing curve data</span>
+              {[0, 0.15, 0.3].map((delay, i) => (
+                <span
+                  key={i}
+                  style={{
+                    width: "5px", height: "5px", borderRadius: "50%",
+                    background: "#6366f1", display: "inline-block",
+                    animation: `dotPulse 1.2s ease-in-out ${delay}s infinite`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className="chat-msg-bubble"
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "0.5rem",
+              flexDirection: msg.role === "user" ? "row-reverse" : "row",
+            }}
+          >
+            {msg.role === "assistant" && (
+              <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", flexShrink: 0 }}>
+                🤖
+              </div>
+            )}
+            <div
+              style={{
+                maxWidth: "82%",
+                padding: "0.625rem 0.875rem",
+                borderRadius: msg.role === "user" ? "12px 0 12px 12px" : "0 12px 12px 12px",
+                background: msg.role === "user"
+                  ? "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)"
+                  : msg.isError
+                  ? "#fef2f2"
+                  : "white",
+                color: msg.role === "user" ? "white" : msg.isError ? "#dc2626" : "#1e293b",
+                fontSize: "0.825rem",
+                lineHeight: 1.55,
+                border: msg.role === "user" ? "none" : `1px solid ${msg.isError ? "#fecaca" : "#e0e7ff"}`,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {msg.text}
+            </div>
+          </div>
+        ))}
+
+        {isSending && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", flexShrink: 0 }}>
+              🤖
+            </div>
+            <div style={{ background: "white", borderRadius: "0 12px 12px 12px", padding: "0.75rem 1rem", border: "1px solid #e0e7ff", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", gap: "4px", alignItems: "center" }}>
+              {[0, 0.15, 0.3].map((delay, i) => (
+                <span
+                  key={i}
+                  style={{
+                    width: "6px", height: "6px", borderRadius: "50%",
+                    background: "#6366f1", display: "inline-block",
+                    animation: `dotPulse 1.2s ease-in-out ${delay}s infinite`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {analyzeError && !isAnalyzing && (
+          <div style={{ textAlign: "center", marginTop: "0.5rem" }}>
+            <button
+              className="retry-btn"
+              onClick={analyzeData}
+              style={{
+                background: "#f5f3ff", border: "1px solid #c4b5fd",
+                borderRadius: "8px", padding: "0.4rem 1rem",
+                cursor: "pointer", fontSize: "0.75rem",
+                color: "#7c3aed", fontWeight: "600",
+                transition: "background 0.15s",
+              }}
+            >
+              🔄 Retry Connection
+            </button>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input row */}
+      <div
+        style={{
+          padding: "0.75rem 1rem",
+          borderTop: "1px solid #e0e7ff",
+          background: "white",
+          display: "flex",
+          gap: "0.5rem",
+          alignItems: "flex-end",
+          flexShrink: 0,
+        }}
+      >
+        <textarea
+          className="chat-input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={isAnalyzed ? "Ask about the curves…" : "Waiting for analysis…"}
+          disabled={!isAnalyzed || isSending}
+          rows={1}
+          style={{
+            flex: 1,
+            resize: "none",
+            border: "1.5px solid #e0e7ff",
+            borderRadius: "10px",
+            padding: "0.55rem 0.75rem",
+            fontSize: "0.825rem",
+            fontFamily: "inherit",
+            color: "#1e293b",
+            background: isAnalyzed ? "white" : "#f8fafc",
+            transition: "border-color 0.2s, box-shadow 0.2s",
+            lineHeight: 1.4,
+            maxHeight: "80px",
+            overflowY: "auto",
+          }}
+        />
+        <button
+          className="chat-send-btn"
+          onClick={sendMessage}
+          disabled={!isAnalyzed || !input.trim() || isSending}
+          style={{
+            width: "36px", height: "36px",
+            background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+            border: "none", borderRadius: "10px",
+            cursor: "pointer", color: "white",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "1rem", flexShrink: 0,
+            transition: "all 0.18s ease",
+            boxShadow: "0 4px 10px rgba(99,102,241,0.3)",
+          }}
+        >
+          ➤
+        </button>
+      </div>
+    </div>
+  );
+}
+// ─── Main ChartModal ────────────────────────────────────────────────────────
 export function ChartModal({
   showModal,
   isFullscreen,
@@ -95,6 +489,9 @@ export function ChartModal({
   const [dateRange1End, setDateRange1End] = useState("");
   const [dateRange2Start, setDateRange2Start] = useState("");
   const [dateRange2End, setDateRange2End] = useState("");
+
+  // ── NEW: chatbot state ────────────────────────────────────────────────────
+  const [showChatbot, setShowChatbot] = useState(false);
 
   const isOverlayMode =
     timeseries && !Array.isArray(timeseries) && Array.isArray(timeseries.ranges);
@@ -142,9 +539,6 @@ export function ChartModal({
       NSMI: { primary: "#f97316", secondary: "#ea580c", tertiary: "#c2410c" },
     };
 
-    // ── NORMAL MODE ──────────────────────────────────────────────────────────
-    // Data is passed as plain scalar arrays (no {x,y} objects).
-    // Labels array drives the x-axis — every scene is rendered by index.
     if (!isOverlayMode && Array.isArray(processedTimeseries)) {
       Object.keys(activeIndices).forEach((index) => {
         if (!activeIndices[index]) return;
@@ -185,7 +579,6 @@ export function ChartModal({
         if (selectedDerivatives.raw) {
           datasets.push({
             label: index,
-            // Plain scalars — Chart.js maps each value to the label at the same index.
             data: processedTimeseries.map((d) => d[index] ?? null),
             borderColor: colors.primary,
             backgroundColor: `${colors.primary}18`,
@@ -193,7 +586,6 @@ export function ChartModal({
             fill: true,
             tension: 0.4,
             spanGaps: true,
-            // Read interpolation flag directly from processedTimeseries by dataIndex.
             pointRadius: (ctx) =>
               processedTimeseries[ctx.dataIndex]?.[`${index}_interpolated`] ? 0 : 2,
             pointStyle: (ctx) =>
@@ -205,7 +597,6 @@ export function ChartModal({
       });
     }
 
-    // ── OVERLAY MODE ─────────────────────────────────────────────────────────
     else if (isOverlayMode && timeseries.ranges.length >= 2) {
       const range1 = timeseries.ranges[0];
       const range2 = timeseries.ranges[1];
@@ -216,7 +607,6 @@ export function ChartModal({
         const color = baseColors[index].primary;
 
         if (selectedDerivatives.raw) {
-          // Plain scalar arrays aligned to maxLength
           const r1 = Array.from({ length: maxLength }, (_, i) =>
             range1.data[i]?.[index] ?? null
           );
@@ -276,9 +666,6 @@ export function ChartModal({
   };
 
   // ─── Chart options ────────────────────────────────────────────────────────
-  // NOTE: parsing:false and normalized:true are intentionally removed.
-  // With plain scalar data arrays, Chart.js maps every element to its
-  // corresponding label by index — all N scenes are rendered correctly.
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -312,7 +699,6 @@ export function ChartModal({
         callbacks: {
           label: (ctx) => {
             const val = ctx.parsed.y;
-            // For raw index datasets, check interpolation flag from source data
             const isRawDataset = ["NDVI", "NDWI", "NSMI"].includes(ctx.dataset.label);
             const interpolated =
               isRawDataset &&
@@ -347,7 +733,6 @@ export function ChartModal({
           color: "#64748b",
           maxRotation: 45,
           minRotation: 45,
-          // autoSkip hides tick labels for readability — does NOT drop data points.
           autoSkip: true,
           maxTicksLimit: 24,
         },
@@ -355,7 +740,7 @@ export function ChartModal({
     },
   };
 
-  // ─── Guard: nothing to render ─────────────────────────────────────────────
+  // ─── Guard ────────────────────────────────────────────────────────────────
   const hasChartData =
     (!isOverlayMode && Array.isArray(processedTimeseries) && processedTimeseries.length > 0) ||
     (isOverlayMode && timeseries.ranges.length >= 2);
@@ -364,7 +749,6 @@ export function ChartModal({
 
   if (!showModal || !isFullscreen) return null;
 
-  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div
       style={{
@@ -392,6 +776,7 @@ export function ChartModal({
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
+          position: "relative",  // needed for chatbot absolute positioning
         }}
       >
         {/* ── Header ── */}
@@ -423,6 +808,44 @@ export function ChartModal({
           </div>
 
           <div style={{ display: "flex", gap: "0.75rem" }}>
+            {/* ── NEW: AI Chatbot button ── */}
+            <button
+              onClick={() => setShowChatbot((prev) => !prev)}
+              style={{
+                background: showChatbot
+                  ? "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)"
+                  : "white",
+                border: showChatbot ? "2px solid #6366f1" : "2px solid #e2e8f0",
+                borderRadius: "10px",
+                padding: "0.625rem 1.25rem",
+                cursor: "pointer",
+                fontSize: "0.875rem",
+                color: showChatbot ? "white" : "#475569",
+                fontWeight: "600",
+                boxShadow: showChatbot ? "0 4px 12px rgba(99,102,241,0.3)" : "none",
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.375rem",
+              }}
+              onMouseOver={(e) => {
+                if (!showChatbot) {
+                  e.currentTarget.style.background = "#f5f3ff";
+                  e.currentTarget.style.borderColor = "#6366f1";
+                  e.currentTarget.style.color = "#6366f1";
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!showChatbot) {
+                  e.currentTarget.style.background = "white";
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                  e.currentTarget.style.color = "#475569";
+                }
+              }}
+            >
+              🤖 AI Chat
+            </button>
+
             <button
               onClick={() => setShowDateRangeModal(true)}
               style={{
@@ -545,6 +968,17 @@ export function ChartModal({
             </div>
           </div>
         </div>
+
+        {/* ── NEW: Chatbot panel (floats inside modal) ── */}
+        {showChatbot && hasChartData && (
+          <ChatbotPanel
+            timeseries={isOverlayMode ? timeseries : processedTimeseries}
+            stats={stats}
+            selectedPoint={selectedPoint}
+            isOverlayMode={isOverlayMode}
+            onClose={() => setShowChatbot(false)}
+          />
+        )}
       </div>
 
       {/* ── Date Range Overlay sub-modal ── */}
