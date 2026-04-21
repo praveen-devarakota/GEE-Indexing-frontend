@@ -111,7 +111,6 @@ function ChatbotPanel({ timeseries, stats, selectedPoint, isOverlayMode, onClose
     setAnalyzeError(null);
 
     try {
-      // ✅ FIX 1: Backend expects { data: [...] }
       const rawData = isOverlayMode ? timeseries?.ranges : timeseries;
 
       const res = await fetch("https://satellite-index-viewer-backend-1.onrender.com/api/analyze", {
@@ -128,11 +127,10 @@ function ChatbotPanel({ timeseries, stats, selectedPoint, isOverlayMode, onClose
         throw new Error(responseJson.error || "Analysis failed");
       }
 
-      // ✅ FIX 2: Backend returns { success, analysis: { trend, key_events, summary } }
       const analysis = responseJson.analysis;
       const greeting =
         analysis?.summary ||
-        "✅ Analysis complete! Ask me anything about the NDVI, NDWI, or NSMI trends, anomalies, or patterns.";
+        "✅ Analysis complete! Ask me anything about the NDVI trends, anomalies, or patterns.";
 
       setIsAnalyzed(true);
       setMessages([{ role: "assistant", text: greeting }]);
@@ -149,7 +147,8 @@ function ChatbotPanel({ timeseries, stats, selectedPoint, isOverlayMode, onClose
       setIsAnalyzing(false);
     }
   };
-const sendMessage = async () => {
+
+  const sendMessage = async () => {
     const trimmed = input.trim();
     if (!trimmed || isSending) return;
 
@@ -173,7 +172,6 @@ const sendMessage = async () => {
         throw new Error(responseJson.error || "Chat failed");
       }
 
-      // ✅ Safely extract string no matter how nested the response is
       let replyText = responseJson.answer;
       if (typeof replyText === "object" && replyText !== null) {
         replyText = replyText.answer ?? JSON.stringify(replyText);
@@ -207,7 +205,6 @@ const sendMessage = async () => {
     }
   };
 
-  // ── JSX below is unchanged — no UI modifications ──────────────────────────
   return (
     <div
       style={{
@@ -431,7 +428,7 @@ const sendMessage = async () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isAnalyzed ? "Ask about the curves…" : "Waiting for analysis…"}
+          placeholder={isAnalyzed ? "Ask about the NDVI curve…" : "Waiting for analysis…"}
           disabled={!isAnalyzed || isSending}
           rows={1}
           style={{
@@ -471,6 +468,7 @@ const sendMessage = async () => {
     </div>
   );
 }
+
 // ─── Main ChartModal ────────────────────────────────────────────────────────
 export function ChartModal({
   showModal,
@@ -482,15 +480,14 @@ export function ChartModal({
   closeModal,
   fetchTimeseries,
 }) {
-  const [activeIndices, setActiveIndices] = useState({ NDVI: true, NDWI: true, NSMI: true });
+  // NDVI only — removed NDWI and NSMI
+  const [activeIndices, setActiveIndices] = useState({ NDVI: true });
   const [selectedDerivatives, setSelectedDerivatives] = useState({ raw: true, d1: false, d2: false });
   const [showDateRangeModal, setShowDateRangeModal] = useState(false);
   const [dateRange1Start, setDateRange1Start] = useState("");
   const [dateRange1End, setDateRange1End] = useState("");
   const [dateRange2Start, setDateRange2Start] = useState("");
   const [dateRange2End, setDateRange2End] = useState("");
-
-  // ── NEW: chatbot state ────────────────────────────────────────────────────
   const [showChatbot, setShowChatbot] = useState(false);
 
   const isOverlayMode =
@@ -530,115 +527,101 @@ export function ChartModal({
     setShowDateRangeModal(false);
   };
 
-  // ─── Dataset builder ──────────────────────────────────────────────────────
+  // ─── Dataset builder — NDVI only ─────────────────────────────────────────
   const buildDatasets = () => {
     const datasets = [];
-    const baseColors = {
-      NDVI: { primary: "#22c55e", secondary: "#16a34a", tertiary: "#15803d" },
-      NDWI: { primary: "#3b82f6", secondary: "#2563eb", tertiary: "#1d4ed8" },
-      NSMI: { primary: "#f97316", secondary: "#ea580c", tertiary: "#c2410c" },
-    };
+    const ndviColors = { primary: "#22c55e", secondary: "#16a34a", tertiary: "#15803d" };
+
+    if (!activeIndices.NDVI) return datasets;
 
     if (!isOverlayMode && Array.isArray(processedTimeseries)) {
-      Object.keys(activeIndices).forEach((index) => {
-        if (!activeIndices[index]) return;
-        const colors = baseColors[index];
+      if (selectedDerivatives.d2) {
+        datasets.push({
+          label: "NDVI (d2)",
+          data: processedTimeseries.map((d) => d["NDVI_d2"] ?? null),
+          borderColor: ndviColors.tertiary,
+          borderWidth: 2,
+          fill: false,
+          tension: 0.4,
+          spanGaps: true,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          order: 3,
+          segment: { borderDash: () => [2, 3] },
+        });
+      }
 
-        if (selectedDerivatives.d2) {
-          datasets.push({
-            label: `${index} (d2)`,
-            data: processedTimeseries.map((d) => d[`${index}_d2`] ?? null),
-            borderColor: colors.tertiary,
-            borderWidth: 2,
-            fill: false,
-            tension: 0.4,
-            spanGaps: true,
-            pointRadius: 0,
-            pointHoverRadius: 3,
-            order: 3,
-            segment: { borderDash: () => [2, 3] },
-          });
-        }
+      if (selectedDerivatives.d1) {
+        datasets.push({
+          label: "NDVI (d1)",
+          data: processedTimeseries.map((d) => d["NDVI_d1"] ?? null),
+          borderColor: ndviColors.secondary,
+          borderWidth: 2,
+          fill: false,
+          tension: 0.4,
+          spanGaps: true,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          order: 2,
+          segment: { borderDash: () => [6, 4] },
+        });
+      }
 
-        if (selectedDerivatives.d1) {
-          datasets.push({
-            label: `${index} (d1)`,
-            data: processedTimeseries.map((d) => d[`${index}_d1`] ?? null),
-            borderColor: colors.secondary,
-            borderWidth: 2,
-            fill: false,
-            tension: 0.4,
-            spanGaps: true,
-            pointRadius: 0,
-            pointHoverRadius: 3,
-            order: 2,
-            segment: { borderDash: () => [6, 4] },
-          });
-        }
-
-        if (selectedDerivatives.raw) {
-          datasets.push({
-            label: index,
-            data: processedTimeseries.map((d) => d[index] ?? null),
-            borderColor: colors.primary,
-            backgroundColor: `${colors.primary}18`,
-            borderWidth: 2.5,
-            fill: true,
-            tension: 0.4,
-            spanGaps: true,
-            pointRadius: (ctx) =>
-              processedTimeseries[ctx.dataIndex]?.[`${index}_interpolated`] ? 0 : 2,
-            pointStyle: (ctx) =>
-              processedTimeseries[ctx.dataIndex]?.[`${index}_interpolated`] ? "dash" : "circle",
-            pointHoverRadius: 4,
-            order: 1,
-          });
-        }
-      });
-    }
-
-    else if (isOverlayMode && timeseries.ranges.length >= 2) {
+      if (selectedDerivatives.raw) {
+        datasets.push({
+          label: "NDVI",
+          data: processedTimeseries.map((d) => d["NDVI"] ?? null),
+          borderColor: ndviColors.primary,
+          backgroundColor: `${ndviColors.primary}18`,
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          spanGaps: true,
+          pointRadius: (ctx) =>
+            processedTimeseries[ctx.dataIndex]?.["NDVI_interpolated"] ? 0 : 2,
+          pointStyle: (ctx) =>
+            processedTimeseries[ctx.dataIndex]?.["NDVI_interpolated"] ? "dash" : "circle",
+          pointHoverRadius: 4,
+          order: 1,
+        });
+      }
+    } else if (isOverlayMode && timeseries.ranges.length >= 2) {
       const range1 = timeseries.ranges[0];
       const range2 = timeseries.ranges[1];
       const maxLength = Math.max(range1.data.length, range2.data.length);
 
-      Object.keys(activeIndices).forEach((index) => {
-        if (!activeIndices[index]) return;
-        const color = baseColors[index].primary;
+      if (selectedDerivatives.raw) {
+        const r1 = Array.from({ length: maxLength }, (_, i) =>
+          range1.data[i]?.NDVI ?? null
+        );
+        datasets.push({
+          label: `NDVI (${range1.range})`,
+          data: r1,
+          borderColor: ndviColors.primary,
+          borderWidth: 2.5,
+          fill: false,
+          tension: 0.4,
+          spanGaps: true,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+        });
 
-        if (selectedDerivatives.raw) {
-          const r1 = Array.from({ length: maxLength }, (_, i) =>
-            range1.data[i]?.[index] ?? null
-          );
-          datasets.push({
-            label: `${index} (${range1.range})`,
-            data: r1,
-            borderColor: color,
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.4,
-            spanGaps: true,
-            pointRadius: 2,
-            pointHoverRadius: 4,
-          });
-
-          const r2 = Array.from({ length: maxLength }, (_, i) =>
-            range2.data[i]?.[index] ?? null
-          );
-          datasets.push({
-            label: `${index} (${range2.range})`,
-            data: r2,
-            borderColor: color,
-            borderWidth: 2.5,
-            fill: false,
-            tension: 0.4,
-            spanGaps: true,
-            pointRadius: 0,
-            pointHoverRadius: 3,
-            segment: { borderDash: () => [8, 4] },
-          });
-        }
-      });
+        const r2 = Array.from({ length: maxLength }, (_, i) =>
+          range2.data[i]?.NDVI ?? null
+        );
+        datasets.push({
+          label: `NDVI (${range2.range})`,
+          data: r2,
+          borderColor: ndviColors.secondary,
+          borderWidth: 2.5,
+          fill: false,
+          tension: 0.4,
+          spanGaps: true,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          segment: { borderDash: () => [8, 4] },
+        });
+      }
     }
 
     return datasets;
@@ -659,13 +642,11 @@ export function ChartModal({
     return [];
   };
 
-  // ─── Assemble chart data ──────────────────────────────────────────────────
   const chartData = {
     labels: getChartLabels(),
     datasets: buildDatasets(),
   };
 
-  // ─── Chart options ────────────────────────────────────────────────────────
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -699,10 +680,10 @@ export function ChartModal({
         callbacks: {
           label: (ctx) => {
             const val = ctx.parsed.y;
-            const isRawDataset = ["NDVI", "NDWI", "NSMI"].includes(ctx.dataset.label);
+            const isRaw = ctx.dataset.label === "NDVI";
             const interpolated =
-              isRawDataset &&
-              processedTimeseries?.[ctx.dataIndex]?.[`${ctx.dataset.label}_interpolated`];
+              isRaw &&
+              processedTimeseries?.[ctx.dataIndex]?.["NDVI_interpolated"];
             const suffix = interpolated ? " (interpolated)" : "";
             return ` ${ctx.dataset.label}: ${val != null ? val.toFixed(4) : "null"}${suffix}`;
           },
@@ -740,7 +721,6 @@ export function ChartModal({
     },
   };
 
-  // ─── Guard ────────────────────────────────────────────────────────────────
   const hasChartData =
     (!isOverlayMode && Array.isArray(processedTimeseries) && processedTimeseries.length > 0) ||
     (isOverlayMode && timeseries.ranges.length >= 2);
@@ -776,7 +756,7 @@ export function ChartModal({
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          position: "relative",  // needed for chatbot absolute positioning
+          position: "relative",
         }}
       >
         {/* ── Header ── */}
@@ -808,7 +788,7 @@ export function ChartModal({
           </div>
 
           <div style={{ display: "flex", gap: "0.75rem" }}>
-            {/* ── NEW: AI Chatbot button ── */}
+            {/* AI Chatbot button */}
             <button
               onClick={() => setShowChatbot((prev) => !prev)}
               style={{
@@ -897,7 +877,7 @@ export function ChartModal({
             gap: "2rem",
           }}
         >
-          {/* Stats panel */}
+          {/* Stats panel — NDVI only */}
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem", overflow: "auto" }}>
             <h4 style={{ margin: "0", fontSize: "1.25rem", fontWeight: "700", color: "#0f172a", letterSpacing: "-0.025em" }}>
               Statistics Summary
@@ -905,15 +885,15 @@ export function ChartModal({
 
             {stats ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-                <StatCard label="NDVI" value={stats.avg_ndvi} unit="Vegetation Index"
+                <StatCard
+                  label="NDVI"
+                  value={stats.avg_ndvi}
+                  unit="Vegetation Index"
                   bgGradient="linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
-                  borderColor="#a7f3d0" textColor="#16a34a" unitColor="#15803d" />
-                <StatCard label="NDWI" value={stats.avg_ndwi} unit="Water Index"
-                  bgGradient="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
-                  borderColor="#93c5fd" textColor="#2563eb" unitColor="#1d4ed8" />
-                <StatCard label="NSMI" value={stats.avg_nsmi} unit="Soil Moisture Index"
-                  bgGradient="linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)"
-                  borderColor="#fdba74" textColor="#ea580c" unitColor="#c2410c" />
+                  borderColor="#a7f3d0"
+                  textColor="#16a34a"
+                  unitColor="#15803d"
+                />
               </div>
             ) : (
               <div style={{ padding: "2rem 1.5rem", color: "#94a3b8", fontSize: "0.938rem", textAlign: "center", fontWeight: "500" }}>
@@ -926,12 +906,12 @@ export function ChartModal({
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem", minHeight: 0 }}>
             {/* Controls row */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              {/* Index toggle — NDVI only */}
               <div style={{ display: "flex", gap: "0.625rem", background: "#f8fafc", padding: "0.5rem", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
                 <FilterButton active={activeIndices.NDVI} onClick={() => toggleIndex("NDVI")}>🌿 NDVI</FilterButton>
-                <FilterButton active={activeIndices.NDWI} onClick={() => toggleIndex("NDWI")}>💧 NDWI</FilterButton>
-                <FilterButton active={activeIndices.NSMI} onClick={() => toggleIndex("NSMI")}>🏜️ NSMI</FilterButton>
               </div>
 
+              {/* Derivative toggles — unchanged */}
               {!isOverlayMode && (
                 <div style={{ display: "flex", gap: "0.625rem", background: "#f8fafc", padding: "0.5rem", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
                   <FilterButton active={selectedDerivatives.raw} onClick={() => toggleDerivative("raw")}>📊 Raw</FilterButton>
@@ -969,7 +949,7 @@ export function ChartModal({
           </div>
         </div>
 
-        {/* ── NEW: Chatbot panel (floats inside modal) ── */}
+        {/* Chatbot panel */}
         {showChatbot && hasChartData && (
           <ChatbotPanel
             timeseries={isOverlayMode ? timeseries : processedTimeseries}

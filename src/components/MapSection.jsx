@@ -63,7 +63,8 @@ function StatCard({ label, value, unit, bgGradient, borderColor, textColor, unit
 }
 
 function MiniChart({ timeseries, isOverlayMode }) {
-  const baseColors = { NDVI: "#22c55e", NDWI: "#3b82f6", NSMI: "#f97316" };
+  // NDVI only
+  const baseColors = { NDVI: "#22c55e" };
   let labels = [], datasets = [];
 
   if (isOverlayMode && timeseries?.ranges?.length >= 2) {
@@ -71,52 +72,45 @@ function MiniChart({ timeseries, isOverlayMode }) {
     const r2 = timeseries.ranges[1];
     const maxLen = Math.max(r1.data.length, r2.data.length);
 
-    // Synthetic "P1…PN" labels — one per position, drives all datasets by index
     labels = Array.from({ length: maxLen }, (_, i) => `P${i + 1}`);
 
-    ["NDVI", "NDWI", "NSMI"].forEach((key) => {
-      const color = baseColors[key];
+    const color = baseColors.NDVI;
 
-      // Plain scalar arrays — length == maxLen, nulls where range is shorter
-      const d1 = Array.from({ length: maxLen }, (_, i) => r1.data[i]?.[key] ?? null);
-      datasets.push({
-        label: `${key} (${r1.range})`,
-        data: d1,
-        borderColor: color,
-        borderWidth: 1.5,
-        fill: false,
-        tension: 0.4,
-        spanGaps: true,
-        pointRadius: 0,
-      });
+    const d1 = Array.from({ length: maxLen }, (_, i) => r1.data[i]?.NDVI ?? null);
+    datasets.push({
+      label: `NDVI (${r1.range})`,
+      data: d1,
+      borderColor: color,
+      borderWidth: 1.5,
+      fill: false,
+      tension: 0.4,
+      spanGaps: true,
+      pointRadius: 0,
+    });
 
-      const d2 = Array.from({ length: maxLen }, (_, i) => r2.data[i]?.[key] ?? null);
-      datasets.push({
-        label: `${key} (${r2.range})`,
-        data: d2,
-        borderColor: color,
-        borderWidth: 1.5,
-        segment: { borderDash: () => [5, 3] },
-        fill: false,
-        tension: 0.4,
-        spanGaps: true,
-        pointRadius: 0,
-      });
+    const d2 = Array.from({ length: maxLen }, (_, i) => r2.data[i]?.NDVI ?? null);
+    datasets.push({
+      label: `NDVI (${r2.range})`,
+      data: d2,
+      borderColor: color,
+      borderWidth: 1.5,
+      segment: { borderDash: () => [5, 3] },
+      fill: false,
+      tension: 0.4,
+      spanGaps: true,
+      pointRadius: 0,
     });
   } else if (Array.isArray(timeseries) && timeseries.length > 0) {
-    // Normal mode — one label per scene, plain scalar per dataset
     labels = timeseries.map((d) => d.date.slice(5));
-    ["NDVI", "NDWI", "NSMI"].forEach((key) => {
-      datasets.push({
-        label: key,
-        data: timeseries.map((d) => d[key] ?? null),
-        borderColor: baseColors[key],
-        borderWidth: 1.5,
-        fill: false,
-        tension: 0.4,
-        spanGaps: true,
-        pointRadius: 0,
-      });
+    datasets.push({
+      label: "NDVI",
+      data: timeseries.map((d) => d.NDVI ?? null),
+      borderColor: baseColors.NDVI,
+      borderWidth: 1.5,
+      fill: false,
+      tension: 0.4,
+      spanGaps: true,
+      pointRadius: 0,
     });
   }
 
@@ -134,8 +128,6 @@ function MiniChart({ timeseries, isOverlayMode }) {
       options={{
         responsive: true,
         maintainAspectRatio: false,
-        // No parsing:false — plain scalar arrays map to labels by index,
-        // so every scene from the backend appears on the chart.
         animation: false,
         plugins: {
           legend: {
@@ -239,8 +231,8 @@ export function MapSection({
               style={{
                 position: "absolute",
                 ...getPopupStyle(),
-                width: "480px",
-                maxHeight: "440px",
+                width: "400px",
+                maxHeight: "380px",
                 background: "rgba(255, 255, 255, 0.98)",
                 backdropFilter: "blur(20px)",
                 borderRadius: "16px",
@@ -304,23 +296,23 @@ export function MapSection({
               {/* Content */}
               <div style={{ flex: 1, overflow: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
 
-                {/* Statistics — hidden in overlay mode */}
+                {/* NDVI Stat — hidden in overlay mode */}
                 {!isOverlayMode && (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                     <h5 style={{ margin: "0 0 0.25rem 0", fontSize: "0.813rem", fontWeight: "700", color: "#0f172a", letterSpacing: "-0.01em" }}>
                       Statistics
                     </h5>
                     {stats ? (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
-                        <StatCard label="NDVI" value={stats.avg_ndvi} unit="Vegetation"
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.5rem" }}>
+                        <StatCard
+                          label="NDVI"
+                          value={stats.avg_ndvi}
+                          unit="Vegetation"
                           bgGradient="linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
-                          borderColor="#a7f3d0" textColor="#059669" unitColor="#047857" />
-                        <StatCard label="NDWI" value={stats.avg_ndwi} unit="Water"
-                          bgGradient="linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)"
-                          borderColor="#93c5fd" textColor="#2563eb" unitColor="#1d4ed8" />
-                        <StatCard label="NSMI" value={stats.avg_nsmi} unit="Soil"
-                          bgGradient="linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)"
-                          borderColor="#fcd34d" textColor="#d97706" unitColor="#b45309" />
+                          borderColor="#a7f3d0"
+                          textColor="#059669"
+                          unitColor="#047857"
+                        />
                       </div>
                     ) : (
                       <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "0.75rem", padding: "1rem", fontWeight: "500" }}>

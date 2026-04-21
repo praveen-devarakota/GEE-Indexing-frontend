@@ -172,8 +172,6 @@ export default function MapWithTimeseries() {
 
       setStats({
         avg_ndvi: avg("NDVI"),
-        avg_ndwi: avg("NDWI"),
-        avg_nsmi: avg("NSMI"),
       });
     }
   };

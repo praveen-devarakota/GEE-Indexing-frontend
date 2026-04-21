@@ -54,22 +54,9 @@ export function TopPanel({
             >
               🛰️
             </span>
-            Satellite Indices Viewer
+            Web tool for local scale impact evaluation
           </h2>
 
-          <div
-            style={{
-              padding: "0.5rem 1rem",
-              background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-              borderRadius: "8px",
-              color: "white",
-              fontSize: "0.875rem",
-              fontWeight: "600",
-              boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
-            }}
-          >
-            Dashboard
-          </div>
         </div>
 
         <div
