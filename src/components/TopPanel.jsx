@@ -56,7 +56,6 @@ export function TopPanel({
             </span>
             Web tool for local scale impact evaluation
           </h2>
-
         </div>
 
         <div

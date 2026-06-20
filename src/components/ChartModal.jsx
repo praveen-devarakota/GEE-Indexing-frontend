@@ -19,8 +19,9 @@ ChartJS.register(
   Legend,
   Tooltip
 );
-
+const API_URL = import.meta.env.VITE_BACKEND_URL;
 function StatCard({ label, value, unit, bgGradient, borderColor, textColor, unitColor }) {
+  
   return (
     <div
       style={{
@@ -85,6 +86,10 @@ function ChatbotPanel({ timeseries, stats, selectedPoint, isOverlayMode, onClose
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isAnalyzed, setIsAnalyzed] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const rawData =
+  isOverlayMode
+    ? timeseries?.ranges || []
+    : timeseries || [];
   const [analyzeError, setAnalyzeError] = useState(null);
   const messagesEndRef = useRef(null);
 
@@ -113,7 +118,7 @@ function ChatbotPanel({ timeseries, stats, selectedPoint, isOverlayMode, onClose
     try {
       const rawData = isOverlayMode ? timeseries?.ranges : timeseries;
 
-      const res = await fetch("https://satellite-index-viewer-backend-1.onrender.com/api/analyze", {
+      const res = await fetch(`${API_URL}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: rawData }),
@@ -127,10 +132,21 @@ function ChatbotPanel({ timeseries, stats, selectedPoint, isOverlayMode, onClose
         throw new Error(responseJson.error || "Analysis failed");
       }
 
-      const analysis = responseJson.analysis;
-      const greeting =
-        analysis?.summary ||
-        "✅ Analysis complete! Ask me anything about the NDVI trends, anomalies, or patterns.";
+              const analysis =responseJson.analysis || {};
+
+        const greeting =
+          analysis.summary ||
+          `Indexed ${
+            analysis.chunks || 0
+          } NDVI periods.
+
+        Ask about:
+
+        • vegetation growth
+        • decline periods
+        • seasonal behaviour
+        • anomalies
+        • peak vegetation`;
 
       setIsAnalyzed(true);
       setMessages([{ role: "assistant", text: greeting }]);
@@ -148,55 +164,115 @@ function ChatbotPanel({ timeseries, stats, selectedPoint, isOverlayMode, onClose
     }
   };
 
-  const sendMessage = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || isSending) return;
+ const sendMessage = async () => {
 
-    const userMsg = { role: "user", text: trimmed };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setIsSending(true);
+  const trimmed = input.trim();
 
-    try {
-      const res = await fetch("https://satellite-index-viewer-backend-1.onrender.com/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: trimmed }),
-      });
+  if (!trimmed || isSending) return;
 
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-
-      const responseJson = await res.json();
-
-      if (!responseJson.success) {
-        throw new Error(responseJson.error || "Chat failed");
-      }
-
-      let replyText = responseJson.answer;
-      if (typeof replyText === "object" && replyText !== null) {
-        replyText = replyText.answer ?? JSON.stringify(replyText);
-      }
-      if (typeof replyText !== "string") {
-        replyText = String(replyText ?? "No response received.");
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: replyText },
-      ]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: `⚠️ Failed to get a response.\n\nError: ${err.message}`,
-          isError: true,
-        },
-      ]);
-    } finally {
-      setIsSending(false);
-    }
+  const userMsg = {
+    role: "user",
+    text: trimmed
   };
+
+  setMessages(prev => [...prev, userMsg]);
+
+  setInput("");
+
+  setIsSending(true);
+
+  try {
+
+    const res = await fetch(
+      `${API_URL}/api/chat`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+          question: trimmed,
+
+          context: {
+
+            curve: rawData,
+
+            stats: stats,
+
+            location: selectedPoint,
+
+            analysis:
+              messages?.[0]?.text || "",
+
+            overlayMode:
+              isOverlayMode
+          }
+        })
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(
+        `Server error: ${res.status}`
+      );
+    }
+
+    const responseJson =
+      await res.json();
+
+    if (!responseJson.success) {
+
+      throw new Error(
+        responseJson.error ||
+        "Chat failed"
+      );
+    }
+
+    let reply =
+      responseJson.answer;
+
+    if (
+      typeof reply === "object"
+    ) {
+
+      reply =
+        reply.answer ||
+        JSON.stringify(reply);
+    }
+
+    setMessages(prev => [
+
+      ...prev,
+
+      {
+        role: "assistant",
+        text: reply
+      }
+
+    ]);
+
+  } catch (err) {
+
+    setMessages(prev => [
+
+      ...prev,
+
+      {
+        role: "assistant",
+        text:
+          `⚠️ ${err.message}`,
+        isError: true
+      }
+
+    ]);
+
+  } finally {
+
+    setIsSending(false);
+
+  }
+};
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
