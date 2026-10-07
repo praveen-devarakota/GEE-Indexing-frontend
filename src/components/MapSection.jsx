@@ -13,11 +13,17 @@ import { Line } from "react-chartjs-2";
 // components globally. Importing Line from react-chartjs-2 is sufficient.
 
 import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
-L.Icon.Default.mergeOptions({
+const customMarkerIcon = L.icon({
+  iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
 });
 
 function ClickHandler({ onClick }) {
@@ -198,7 +204,10 @@ export function MapSection({
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           />
           {tileUrl && <TileLayer url={tileUrl} opacity={0.7} />}
-          {selectedPoint && <Marker position={[selectedPoint.lat, selectedPoint.lng]} />}
+          {selectedPoint && <Marker
+              position={[selectedPoint.lat, selectedPoint.lng]}
+              icon={customMarkerIcon}
+            />}
           <MapEvents setMapInstance={setMapInstance} />
           <ClickHandler onClick={(latlng) => fetchTimeseries(latlng)} />
         </MapContainer>
